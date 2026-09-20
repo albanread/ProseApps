@@ -4,7 +4,7 @@
 /* located in MainWindow.cpp */
 
 //------------------[referenced from MainWindow.cpp]-----------------//
-bool ConfirmCloseSaveFiles();
+bool ConfirmCloseSaveFiles(bool quitting);
 
 
 /* located in edit_files.cpp */

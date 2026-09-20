@@ -83,6 +83,21 @@ LexInstance li;
 	InitLexInstance(&li, line);
 	line->lexresult.exitstate = ParseLine(&li, entry_state);
 	//DumpLexResult(&line->lexresult);
+
+	// Give back what the line did not need. Room for 128 points (1 KB) is
+	// set aside before parsing and was kept for every line of every open
+	// document: 100 MB for 100,000 lines, most of which need a few points.
+	LexResult *lr = &line->lexresult;
+	int keep = (lr->npoints > 0) ? lr->npoints : 1;
+	if (keep < lr->alloc_size)
+	{
+		LexPoint *fewer = (LexPoint *)resmal(lr->points, keep * sizeof(LexPoint));
+		if (fewer)
+		{
+			lr->points = fewer;
+			lr->alloc_size = keep;
+		}
+	}
 }
 
 /*
@@ -284,7 +299,11 @@ mark_operator: ;	// jump from "/*" comment detector ("/" operator)
 		}
 		else
 		{
-			*(word_ptr++) = ch;
+			// word[] is on the stack and a run of letters and digits can be
+			// any length (a hex blob, base64): what does not fit is dropped.
+			// No keyword is that long, and a number cut short is a number.
+			if (word_ptr < &word[sizeof(word) - 1])
+				*(word_ptr++) = ch;
 			have_chars = 1;
 		}
 	}

@@ -19,7 +19,9 @@ Config *Config::load()
 {
 FILE *fpi;
 char *filename;
-char line[1024];
+char *line = NULL;
+size_t linesize = 0;
+ssize_t len;
 char *equ, *ptr;
 
 	settings = (Config *)(new BMessage(M_SETTINGS));
@@ -30,9 +32,13 @@ char *equ, *ptr;
 	fpi = fopen(filename, "rb");
 	if (!fpi) return settings;
 
-	while(!feof(fpi))
+	// whole lines: a value over 1021 characters (the last search string can
+	// be a whole selected line) was split, and its tail read as a setting of
+	// its own. And a read error ends the loop, which feof() never did.
+	while((len = getline(&line, &linesize, fpi)) >= 0)
 	{
-		fgetline(fpi, line, sizeof(line) - 1);
+		while(len > 0 && (line[len - 1] == 13 || line[len - 1] == 10))
+			line[--len] = 0;
 
 		equ = strchr(line, '=');
 		if (!equ) continue;
@@ -55,7 +61,7 @@ char *equ, *ptr;
 		}
 	}
 
-
+	free(line);
 	fclose(fpi);
 	return settings;
 }

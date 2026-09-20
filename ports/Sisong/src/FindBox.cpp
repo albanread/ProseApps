@@ -27,20 +27,35 @@ static BFilePanel *BrowsePanel = NULL;
 char *(*GetStringScanner(int options))(const char *, const char *, int);
 
 
+// Opens the find box, or brings the one that is open to the front: there is
+// only ever one. (The constructor did this itself with "delete this", and the
+// destructor then saved settings through the new object's members, which
+// were never set, and cleared CurrentFindBox while the old box stayed up:
+// Alt+F twice was a crash, or a find box whose buttons did nothing.)
+void CFindBox::Open(int initialMode)
+{
+	if (CurrentFindBox)
+	{
+		// with a timeout: we are called with the main window locked, and
+		// the find box locks the main window when it searches
+		if (CurrentFindBox->LockWithTimeout(500000) == B_OK)
+		{
+			CenterWindow(MainWindow, CurrentFindBox);
+			if (CurrentFindBox->IsHidden())
+				CurrentFindBox->Show();
+			CurrentFindBox->Activate();
+			CurrentFindBox->Unlock();
+		}
+		return;
+	}
+
+	new CFindBox(initialMode);
+}
+
 CFindBox::CFindBox(int initialMode)
 	: BWindow(box_size, "Search", B_TITLED_WINDOW,
 		B_NOT_RESIZABLE|B_NOT_ZOOMABLE|B_ASYNCHRONOUS_CONTROLS)
 {
-	// don't open more than one find box at a time
-	if (CurrentFindBox)
-	{
-		CenterWindow(MainWindow, CurrentFindBox);
-		CurrentFindBox->Show();
-		CurrentFindBox->Activate();
-		delete this;
-		return;
-	}
-
 	CurrentFindBox = this;
 	CenterWindow(MainWindow, this);
 

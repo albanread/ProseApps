@@ -1,6 +1,7 @@
 
 #include "editor.h"
 #include "MainWindow.fdh"
+#include <ctype.h>
 
 
 CMainWindow::CMainWindow(BRect frame)
@@ -124,14 +125,89 @@ void CMainWindow::UpdateWindowTitle()
 void c------------------------------() {}
 */
 
+// the menu item with this shortcut, in this menu or below it
+static BMenuItem *FindShortcutItem(BMenu *menu, char key, uint32 modifiers)
+{
+	for(int32 i=0;i<menu->CountItems();i++)
+	{
+		BMenuItem *item = menu->ItemAt(i);
+		uint32 item_modifiers = 0;
+		char item_key = item->Shortcut(&item_modifiers);
+
+		if (item_key && toupper(item_key) == toupper(key) && item_modifiers == modifiers)
+			return item;
+
+		if (item->Submenu())
+		{
+			BMenuItem *found = FindShortcutItem(item->Submenu(), key, modifiers);
+			if (found) return found;
+		}
+	}
+
+	return NULL;
+}
+
+// The menu's Command+Control shortcuts (Save All, Close All, Find in files,
+// Find Previous, Build but Don't Run, Abort Compile, Save Layout), found by
+// the key's own character.
+//
+// The Interface Kit finds a shortcut by the first byte of the key's text,
+// and with Control held the keymap makes that text a control character
+// (0x06 for F) or, for the digits, nothing at all (the key then arrives as
+// B_UNMAPPED_KEY_DOWN). So none of these shortcuts fired, and the key went
+// on to start one of the editor's own Control+key command sequences.
+static bool HandleCommandControlShortcut(BWindow *window, BMenu *menubar, BMessage *message)
+{
+	int32 modifiers = 0;
+	if (message->FindInt32("modifiers", &modifiers) != B_OK) return false;
+	if (!(modifiers & B_COMMAND_KEY) || !(modifiers & B_CONTROL_KEY)) return false;
+
+	// the character the key has with no modifier held; an unmapped key has
+	// none, and the digit row is known by its key codes
+	int32 ch = 0;
+	if (message->FindInt32("raw_char", &ch) != B_OK || ch <= 0)
+	{
+		int32 key = 0;
+		message->FindInt32("key", &key);
+		if (key < 0x12 || key > 0x1b) return false;
+		ch = "1234567890"[key - 0x12];
+	}
+
+	uint32 want = modifiers & (B_COMMAND_KEY | B_CONTROL_KEY | B_SHIFT_KEY | B_OPTION_KEY);
+	BMenuItem *item = FindShortcutItem(menubar, (char)ch, want);
+	if (!item || !item->IsEnabled() || !item->Message()) return false;
+
+	BMessage copy(*item->Message());
+	window->PostMessage(&copy);
+	return true;
+}
+
 void CMainWindow::DispatchMessage(BMessage *message, BHandler *handler)
 {
+	// The window is shown by its constructor, which EApp's constructor calls
+	// before it sets MainView and opens the first document: a key or wheel
+	// event in that moment would go through both, unset. Until the
+	// application says it is running, events are the Interface Kit's alone.
+	if (!app_running || !MainView || !editor.curev)
+	{
+		BWindow::DispatchMessage(message, handler);
+		return;
+	}
+
 	switch(message->what)
 	{
+		case B_UNMAPPED_KEY_DOWN:
+			if (!HandleCommandControlShortcut(this, top.menubar->bar, message))
+				BWindow::DispatchMessage(message, handler);
+		break;
+
 		// have to hook keyboard input here so we can catch modifier keys
 		// that would otherwise be gobbled up by the menu manager
 		case B_KEY_DOWN:
 		{
+			if (HandleCommandControlShortcut(this, top.menubar->bar, message))
+				break;
+
 			const char *bytes = NULL;
 			int32 ch;
 			if (message->FindString("bytes", &bytes) != B_OK || !bytes)
@@ -195,16 +271,18 @@ void CMainWindow::DispatchMessage(BMessage *message, BHandler *handler)
 
 		case B_MOUSE_WHEEL_CHANGED:
 		{
-			float fDelta;
-			int delta_y;
+			float fDelta = 0;
 
 			if (MainView->IsFocus())
 			{
-				message->FindFloat("be:wheel_delta_y", &fDelta);
-				delta_y = (int)fDelta;
-
-				int key = (delta_y > 0) ? KEY_MOUSEWHEEL_DOWN : KEY_MOUSEWHEEL_UP;
-				editor.curev->HandleKey(key);
+				// by the sign of the delta, and not at all for none: it was
+				// cut to an int first, so a delta under one line (a trackpad's)
+				// and a purely horizontal event both scrolled up
+				if (message->FindFloat("be:wheel_delta_y", &fDelta) == B_OK && fDelta != 0)
+				{
+					int key = (fDelta > 0) ? KEY_MOUSEWHEEL_DOWN : KEY_MOUSEWHEEL_UP;
+					editor.curev->HandleKey(key);
+				}
 			}
 			else
 			{
@@ -418,7 +496,7 @@ bool CMainWindow::QuitRequested()
 	// pane running, because in that case we will be called twice for some reason.
 	if (fClosing) return true;
 
-	if (fDoingInstantQuit || ConfirmCloseSaveFiles())
+	if (fDoingInstantQuit || ConfirmCloseSaveFiles(true))
 	{
 		fClosing = true;
 		ProjectManager.SaveProject();
@@ -435,7 +513,7 @@ bool CMainWindow::QuitRequested()
 // loops through each unsaved document and asks if the user wants to save it.
 //
 // if the shutdown is aborted, returns false.
-bool ConfirmCloseSaveFiles()
+bool ConfirmCloseSaveFiles(bool quitting)
 {
 EditView *ev;
 int i;
@@ -450,7 +528,8 @@ int i;
 		ev->FullRedrawView();
 
 		BString prompt;
-		prompt << "Save \"" << GetFileSpec(ev->filename) << "\" before quitting?";
+		prompt << "Save \"" << GetFileSpec(ev->filename) << "\" before "
+			<< (quitting ? "quitting?" : "closing it?");
 
 		BAlert *alert = new BAlert("", prompt.String(), \
 							"Cancel", "Don't Save", "Save It",
@@ -478,8 +557,10 @@ int i;
 				{
 					// document is Untitled, so popup Save As box. Save As is NOT modal,
 					// so we abort the shutdown for now, but ask Save As box to continue
-					// it after user makes the selection
-					FileSaveAs(false, true);
+					// it after user makes the selection.
+					// (Not quitting: the panel just saves, and what was asked
+					// for -- another project, a layout -- is asked for again.)
+					FileSaveAs(false, quitting);
 					return false;
 				}
 			}

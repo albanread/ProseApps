@@ -153,6 +153,9 @@ void clLine::DeleteAfterIndex(int index)
 // returns character number "index" from line.
 char clLine::GetCharAtIndex(int index)
 {
+	if (index < 0)
+		return 0;
+
 	if (index >= this->gap_start)
 		index += GetGapLength(this);
 

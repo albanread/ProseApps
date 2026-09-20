@@ -39,9 +39,10 @@ class MessageViewLooper : public BLooper
 public:
 	MessageViewLooper(MessageView *assoc_view);
 	void DispatchMessage(BMessage *msg, BHandler *target);
+	void Detach();		// the view is being destroyed
 
 private:
-	MessageView *fAssocView;
+	MessageView * volatile fAssocView;
 };
 
 #endif

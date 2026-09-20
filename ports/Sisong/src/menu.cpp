@@ -332,6 +332,10 @@ static bool FileMenu(unsigned int code, BMessage *msg)
 		case M_FILE_LOAD_LAYOUT2:
 		case M_FILE_LOAD_LAYOUT3:
 		{
+			// load_layout() closes every document: not without asking
+			// about the unsaved ones, as it used to
+			if (!ConfirmCloseSaveFiles(false)) break;
+
 			char *fname = GetQuickLayoutFilename(code - M_FILE_LOAD_LAYOUT1);
 
 			stat("'%s'", fname);
@@ -437,9 +441,9 @@ static bool SearchMenu(unsigned int code, BMessage *msg)
 {
 	switch(code)
 	{
-		case M_SEARCH_FIND: new CFindBox(FINDBOX_FIND); break;
-		case M_SEARCH_REPLACE: new CFindBox(FINDBOX_REPLACE); break;
-		case M_SEARCH_FIND_FILES: new CFindBox(FINDBOX_FIND_FILES); break;
+		case M_SEARCH_FIND: CFindBox::Open(FINDBOX_FIND); break;
+		case M_SEARCH_REPLACE: CFindBox::Open(FINDBOX_REPLACE); break;
+		case M_SEARCH_FIND_FILES: CFindBox::Open(FINDBOX_FIND_FILES); break;
 
 		case M_SEARCH_FIND_NEXT:
 		case M_SEARCH_FIND_PREV:
@@ -456,7 +460,7 @@ static bool SearchMenu(unsigned int code, BMessage *msg)
 			}
 			else
 			{
-				new CFindBox(FINDBOX_FIND);
+				CFindBox::Open(FINDBOX_FIND);
 			}
 		}
 		break;
@@ -523,6 +527,10 @@ static bool ProjectsMenu(unsigned int code, BMessage *msg)
 
 			if (msg && msg->FindString("path", &projectPath) == B_OK)
 			{
+				// opening a project closes every document: not without
+				// asking about the unsaved ones, as it used to
+				if (!ConfirmCloseSaveFiles(false)) break;
+
 				// save current project if any...
 				if (!ProjectManager.SaveProject())
 				{

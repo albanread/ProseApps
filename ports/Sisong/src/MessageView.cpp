@@ -40,6 +40,14 @@ MessageView::~MessageView()
 	}
 	
 	if (fLooper) {
+		// We are on the window's thread, holding the window's lock, and are
+		// about to wait for the looper's. The looper holds its own lock while
+		// it dispatches, and waits for the window's to hand us a message: a
+		// timer's message arriving now had each waiting for the other, the
+		// preferences window hung half closed, and the next "Preferences..."
+		// hung the main window on it. So: tell the looper we are going, which
+		// makes it stop waiting (see DispatchMessage), then wait for it.
+		fLooper->Detach();
 		fLooper->Lock();
 		fLooper->Quit();
 		fLooper = NULL;
@@ -70,11 +78,32 @@ MessageViewLooper::MessageViewLooper(MessageView *assoc_view)
 { }
 
 
+void MessageViewLooper::Detach()
+{
+	fAssocView = NULL;
+}
+
 void MessageViewLooper::DispatchMessage(BMessage *msg, BHandler *target)
 {
-	if (fAssocView && fAssocView->LockLooper()) {
-		fAssocView->MessageReceived(msg);
-		fAssocView->UnlockLooper();
+	// wait for the window's lock in slices, giving up once the view has said
+	// it is going away: see ~MessageView()
+	for(;;)
+	{
+		MessageView *view = fAssocView;
+		if (!view) break;
+
+		status_t err = view->LockLooperWithTimeout(20 * 1000);
+		if (err == B_OK)
+		{
+			if (fAssocView)
+				view->MessageReceived(msg);
+
+			view->UnlockLooper();
+			break;
+		}
+
+		if (err != B_TIMED_OUT)
+			break;		// not in a window (yet, or any more)
 	}
 	
 	BLooper::DispatchMessage(msg, target);

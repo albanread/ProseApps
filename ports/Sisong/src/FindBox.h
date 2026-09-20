@@ -62,6 +62,7 @@ public:
 class CFindBox : public BWindow
 {
 public:
+	static void Open(int mode);	// the way to get one: see FindBox.cpp
 	CFindBox(int mode);
 	~CFindBox();
 	virtual void MessageReceived(BMessage *msg);

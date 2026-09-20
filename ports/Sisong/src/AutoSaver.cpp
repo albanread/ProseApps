@@ -62,11 +62,20 @@ void AutoSaver_Tick()
 	//stat("%d : %d", LastAutoSave, Timer);
 }
 
+// <dir>name_<number>.ext
+static void AutoSaveName(BString *path, const BString &dir, const char *name, \
+						const char *ext, int number)
+{
+	*path = dir;
+	*path << name << "_" << (int32)number;
+	if (ext)
+		*path << "." << ext;
+}
+
 static void AutoSaver_Fire()
 {
 char *filespec, *ext;
 const char *autosv_filename;
-char str_num[50];
 
 	if (!editor.curev) return;	// just in case
 
@@ -89,29 +98,38 @@ char str_num[50];
 
 	BString basepath(dir);
 	BString path;
-	mkdir(basepath.String(), S_IRUSR | S_IWUSR);
+	mkdir(basepath.String(), 0755);
 
-	// find an used filename by adding numbers to the end of filename
-	for(int number=0;;number++)
+	// One of ten names per document: the first that is free, else the one
+	// written longest ago. (It took a new name every time and deleted
+	// nothing: a full copy of the document for every minute of editing,
+	// and every earlier name opened to see if it existed.)
+	const int kCopies = 10;
+	int chosen = 0;
+	time_t oldest = 0;
+
+	for(int number=0;number<kCopies;number++)
 	{
-		sprintf(str_num, "%d", number);
+		AutoSaveName(&path, basepath, filespec, ext, number);
 
-		path = basepath;
-		path.Append(filespec);
-		path.Append("_");
-		path.Append(str_num);
-		if (ext)
+		BEntry entry(path.String());
+		if (!entry.Exists())
 		{
-			path.Append(".");
-			path.Append(ext);
-		}
-
-		if (!file_exists(path))
-		{
-			autosv_filename = path.String();
+			chosen = number;
 			break;
 		}
+
+		time_t modified = 0;
+		entry.GetModificationTime(&modified);
+		if (number == 0 || modified < oldest)
+		{
+			oldest = modified;
+			chosen = number;
+		}
 	}
+
+	AutoSaveName(&path, basepath, filespec, ext, chosen);
+	autosv_filename = path.String();
 
 	stat("autosave: %s", autosv_filename);
 	editor.curev->Save(autosv_filename);

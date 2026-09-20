@@ -94,7 +94,7 @@ bool block_key = false;
 		
 		if (message)
 		{
-			MainWindow->PostMessage(new BMessage(message));
+			MainWindow->PostMessage(message);
 			command_in_progress = false;
 		}
 		

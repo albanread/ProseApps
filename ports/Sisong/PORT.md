@@ -54,7 +54,10 @@ Flags that matter:
 
 ## What the port changed
 
-Found by running it on Prose (arm64, QEMU/HVF), then by reading.
+Found by running it on Prose (arm64, QEMU/HVF), and by an audit of the
+22,000 lines for what changes between the machine it was written on and
+this one. Every item was confirmed in the source, and in the guest where it
+could be provoked.
 
 **The system it runs on**
 
@@ -80,14 +83,35 @@ Found by running it on Prose (arm64, QEMU/HVF), then by reading.
   `http://five75.sourceforge.net/ucheck.php` and showed whatever the
   server sent in an alert. A program in the Prose image does not phone
   home; the file and its preference are gone.
+- *Command+Control shortcuts* (Save All, Close All, Find in files, Find
+  Previous, Build but Don't Run, Abort Compile, Save Layout 1-3) did
+  nothing: with Control held the keymap turns the key's text into a control
+  character, or into nothing for the digits, the Interface Kit finds no
+  shortcut for that, and the key started one of the editor's own
+  Control+key command sequences instead. The window now finds those menu
+  items by the key's own character.
+- *Timers* (the cursor, the About box, the statistics page) were threads
+  that slept and posted a message, ended with `kill_thread()`: whatever lock
+  the thread held at that instant stayed held. They are `BMessageRunner`s.
+- *Build scripts* were started with `vfork()`, which here is the bare system
+  call without the heap's fork hooks: in a program with other threads the
+  child could wait for ever on a malloc lock before it ran `bash`. `fork()`;
+  the child leaves with `_exit()`; a child that was aborted is reaped.
 - *The debug log* went beside the executable (an installed package is
   read-only) or into the author's `/boot/dev/sisong/`. It is written only
   when `SISONG_LOG=/some/file` asks for it. The attempt to open
   `/boot/dev/sisong/src/borkme` at startup is gone, and so is the six-line
   jump the cursor made after loading a document: it starts on line 1.
+- *The mouse wheel* went by the delta cut to an `int`: a delta under one
+  line, or a purely horizontal event, scrolled up.
+- *The file browser* (New Project, templates) opened every file of a folder
+  to seek to its end for the size -- device nodes too under `/dev` -- and
+  kept the size in 32 bits. `BEntry::GetSize()`.
 - Resources (`prose/Sisong.rdef`): signature `application/x-vnd.KT-Sisong`,
-  version, the text types it opens, and an icon (`prose/Sisong.svg`; upstream
-  had none).
+  version, "text" and `text/x-source-code` as the types it opens (a type the
+  system does not know would be created by `mimeset` inside the package,
+  with Sisong as its preferred application), and an icon (`prose/Sisong.svg`;
+  upstream had none).
 
 **64 bits, arm64, gcc 13**
 
@@ -96,22 +120,81 @@ Found by running it on Prose (arm64, QEMU/HVF), then by reading.
   `B_SCNd32`/`B_PRId32`. `tabs.cpp` printed a pointer with `%x`.
 - `run_template_selector()` was declared `char *` and returned nothing.
 - `fgetcsv()` kept `fgetc()` in a `char` and compared it with -1.
+- Checked and clean: no pointer travels through an `int32` message field,
+  every table of 256 entries is indexed through `unsigned char`, the mouse
+  wheel's negative key codes never pass through a `char`, and no structure
+  is written to disk as raw bytes.
 
-**Bugs that were upstream's, met on the way**
+**Crashes and hangs that were upstream's**
+
+- *Alt+F with the find box open.* `CFindBox`'s constructor, finding a box
+  already open, did `delete this`; the destructor then saved settings
+  through the new object's members, never set, and cleared
+  `CurrentFindBox` while the old box stayed up: a crash, or a find box
+  whose buttons did nothing. `CFindBox::Open()` brings the open box forward.
+- *Escape in an input box* (New Folder, New File, a colour scheme's name)
+  called `Quit()` on the window that `InputBox::Go()` was still polling: a
+  use after free. Escape only sets the flags now.
+- *The About page* is the first thing Preferences shows, and its
+  `rotate_frame` was never initialised: a negative leftover indexed
+  `colors[]` far outside the array on the first tick.
+- *A click in the left half of the first cell of an empty line* read the
+  byte before the line's text and left the cursor at column -1.
+- *A word longer than 2047 characters* (a hex blob, base64) overran the
+  lexer's `char word[2048]` on the stack: opening the file was enough.
+- *New Project's OK* worked on the main window -- documents, tabs, the
+  bottom pane -- from its own window's thread without the main window's
+  lock. With the bottom pane open that removes a view from an unlocked
+  window, which the Interface Kit answers with a call to the debugger.
+- *Closing Preferences could hang the program.* A preflet's destructor, on
+  the window's thread and holding the window's lock, waited for its own
+  looper's lock; the looper, holding that while it dispatched a timer's
+  message, waited for the window's. The window stayed half closed and the
+  next "Preferences..." hung the main window on it. The looper now waits in
+  slices and gives up when the view says it is going.
+- *Stopping a build* raced: the build thread deleted the semaphore the
+  window was about to wait on, the wait failed at once, and the window
+  killed a thread that was still running. The thread now releases the
+  semaphore once, last thing, asked or not, and only the window's side
+  deletes it. The script command `hide` made the two meet.
+- A key or wheel event in the moment between the window showing and the
+  first document opening went through unset pointers.
+- `ProcessRefs()` made an unset pointer the active tab when nothing could
+  be opened; a `B_KEY_DOWN` without `bytes` dereferenced one;
+  `UpdateProjectsMenu()` could return holding `ChangeMenusLock`.
+
+**Text that was lost or damaged**
 
 - *Long lines corrupted files.* A document was read into `char[1024]`, so a
   line over 1022 characters arrived as several, and saving wrote those
   breaks into the file. The loader reads lines of any length; `UpdateLine()`
   flushes its 4096-byte run buffer instead of overrunning it (which a long
-  line now could reach).
-- `ProcessRefs()` made an unset pointer the active tab when nothing could
-  be opened; a `B_KEY_DOWN` without `bytes` dereferenced one.
+  line now could reach). The same for a build script's lines (the tail of
+  one over 1031 characters was *run as a command of its own*), the settings
+  file, and Find in Files (which miscounted lines after a long one).
+- *Opening a project, making one, or loading a layout closed every
+  document without asking*, unsaved ones included. They ask now.
+- *A failed write was reported as success* (nothing looked at `fwrite` or
+  `fclose`), and the document was marked clean.
+- *A key the editor cannot type* -- any character above ASCII -- first
+  deleted the selection and then was dropped. It is dropped first.
+- The auto-saver took a new name for every copy and deleted none: a copy of
+  the document per minute of editing. Ten names per document, the oldest
+  reused.
+
+**Smaller**
+
 - The function list leaked every item on each rescan, once a second while
-  typing. `UpdateProjectsMenu()` could return holding `ChangeMenusLock`.
+  typing; two messages passed to `PostMessage()` with `new` were never
+  freed; the lexer kept 1 KB of colour points for every line of every open
+  document, used or not.
 - `maxcpy()` left a byte unset when truncating; `stat()`/`staterr()` formatted
-  without bound into 40 KB of stack on whatever thread called them; the
-  settings directory was created without search permission; a stray `;`
-  after an `if` in `FBView`'s destructor.
+  without bound into 40 KB of stack on whatever thread called them;
+  directories were created with mode `0xffffffff` or without search
+  permission; colours parsed from the settings had no alpha, which
+  `rgb_color`'s `==` compares, so the preferences' Revert button went by
+  garbage; a stray `;` after an `if` in `FBView`'s destructor; the typed
+  name in New Project was `strcat`'ed into `char[MAXPATHLEN]`.
 
 ## Testing
 
@@ -131,10 +214,12 @@ with CRLF and without a final newline saved and compared.
 
 ## Known limits (upstream's, unchanged)
 
-- **ASCII.** A column is a byte. Keys above 127 are ignored, and a UTF-8
-  character in a file takes as many columns as it has bytes; it is drawn
-  whole, and the file is saved unchanged, but the cursor steps through it
-  byte by byte.
+- **ASCII.** A column is a byte. Keys above 127 are ignored. A UTF-8
+  character in a file takes as many columns as it has bytes and is drawn
+  whole in the first of them; a file that is only opened, edited elsewhere
+  in the text and saved keeps such characters as they were (the boot test
+  checks that), but the cursor steps through one byte by byte, and
+  Backspace or Delete inside one removes a single byte and leaves the rest.
 - CRLF files are saved with LF endings, and "Remove trailing whitespace when
   saving" is on by default (Preferences > Misc).
 - Saving overwrites the file in place; a full disk in mid-save loses text.

@@ -15,7 +15,7 @@ char *path = (char *)smal(MAXPATHLEN);
 
 	GetConfigDir(path);
 	strcat(path, ".templates");
-	mkdir(path, 0xffffffff);
+	mkdir(path, 0755);	// was 0xffffffff
 	
 	return path;
 }
@@ -45,7 +45,12 @@ public:
 				entry_ref dir; 
 				const char *filespec;
 				int32 DocID;
-				
+				bool found = false, failed = false;
+
+				// this is the template panel's looper, not the window's
+				// thread: the document is found and written under the
+				// window's lock, or it can change, or close, meanwhile
+				LockWindow();
 				if ((msg->FindInt32("DocID", &DocID) == B_OK) &&
 				   (msg->FindRef("directory", &dir) == B_OK) &&
 				   (msg->FindString("name", &filespec) == B_OK) &&
@@ -57,13 +62,17 @@ public:
 					entry.GetPath(&path);
 					path.Append(filespec);
 					const char *filename = path.Path();
-					
-					if (ev->Save(filename))
-					{
-						(new BAlert("", "The save operation failed: the file could not be written to the destination.", "Damned!"))->Go();
-					}
+
+					found = true;
+					failed = ev->Save(filename);
 				}
-				else
+				UnlockWindow();
+
+				if (found && failed)
+				{
+					(new BAlert("", "The save operation failed: the file could not be written to the destination.", "Damned!"))->Go();
+				}
+				else if (!found)
 				{
 					(new BAlert("", "The save operation failed.", "Damned!"))->Go();
 				}

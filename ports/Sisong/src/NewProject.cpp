@@ -130,13 +130,34 @@ BString *projectPath;
 		return;
 	}
 
+	// From here on we work on the main window -- its documents, tabs and
+	// bottom pane -- from this window's thread: under the main window's lock.
+	// (Without it, replacing the bottom pane's contents while the pane was
+	// open removed a view from an unlocked window, which the Interface Kit
+	// answers with a call to the debugger; and the main window's cursor timer
+	// could be reading documents as they were freed.)
+	LockWindow();
+
+	// what follows closes every document: not without asking about the
+	// unsaved ones, as it used to
+	if (!ConfirmCloseSaveFiles(false))
+	{
+		UnlockWindow();
+		return;
+	}
+
 	// save current project if any
-	if (ProjectManager.SaveProject()) return;
+	if (ProjectManager.SaveProject())
+	{
+		UnlockWindow();
+		return;
+	}
 	
 	// create the project settings directory
 	projectPath = ProjectManager.CreateProject(projectName);
 	if (!projectPath)
 	{
+		UnlockWindow();
 		(new BAlert("", "The project could not be created. Most likely the selected name is already"
 						" in use.\n", "OK", NULL, NULL, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		return;
@@ -157,8 +178,10 @@ BString *projectPath;
 	
 	// lastly, open build script
 	ProjectManager.OpenBuildScript(projectPath->String());
-	
-	
+
+	UnlockWindow();
+	delete projectPath;
+
 	Quit();
 }
 
@@ -190,13 +213,16 @@ void NewProjectWindow::MessageReceived(BMessage *msg)
 				BPath path;
 				
 				fileview->GetPath(&path);
-				path.Append(folderName->String());
-				
-				mkdir(path.Path(), 0xffffffff);
-				fileview->Update();
-				
-				fileview->SetPath(path.Path());
-				dirmenu->SetPath(path.Path());
+
+				// a name BPath will not take (too long, say) leaves no path
+				if (path.Append(folderName->String()) == B_OK)
+				{
+					mkdir(path.Path(), 0755);	// was 0xffffffff: setuid, setgid and sticky with it
+					fileview->Update();
+
+					fileview->SetPath(path.Path());
+					dirmenu->SetPath(path.Path());
+				}
 				
 				delete folderName;
 			}
@@ -209,23 +235,21 @@ void NewProjectWindow::MessageReceived(BMessage *msg)
 			
 			if (fileName = InputBox::Go(MainWindow, "New File", "Name of new file:", ""))
 			{
-				BPath bpath;				
-				char fname[MAXPATHLEN];
+				// through BPath, which checks the length: the folder and the
+				// typed name were strcat'ed into char[MAXPATHLEN]
+				BPath bpath;
 				
 				fileview->GetPath(&bpath);
-				strcpy(fname, bpath.Path());
-				
-				int len = strlen(fname);
-				if (len && fname[len-1] != '/')
-					strcat(fname, "/");
-				
-				strcat(fname, fileName->String());
-				
-				touch(fname);
-				fileview->Update();
-				fileview->SelectItem(fname);
-				
-				files_to_open.AddItem(smal_strdup(fname));
+				if (bpath.Append(fileName->String()) == B_OK)
+				{
+					const char *fname = bpath.Path();
+
+					touch(fname);
+					fileview->Update();
+					fileview->SelectItem(fname);
+
+					files_to_open.AddItem(smal_strdup(fname));
+				}
 				
 				delete fileName;
 			}
@@ -249,23 +273,19 @@ void NewProjectWindow::MessageReceived(BMessage *msg)
 				if (fname)
 				{
 					BPath bpath;
-					char dest_name[MAXPATHLEN];
 					
 					fileview->GetPath(&bpath);
-					strcpy(dest_name, bpath.Path());
-					
-					int len = strlen(dest_name);
-					if (len && dest_name[len-1] != '/')
-						strcat(dest_name, "/");
-					
-					strcat(dest_name, fname->String());
-					
-					stat("%s -> %s", template_name, dest_name);
-					CopyFile(template_name, dest_name);
-					fileview->Update();
-					fileview->SelectItem(dest_name);
-					
-					files_to_open.AddItem(smal_strdup(dest_name));
+					if (bpath.Append(fname->String()) == B_OK)
+					{
+						const char *dest_name = bpath.Path();
+
+						stat("%s -> %s", template_name, dest_name);
+						CopyFile(template_name, dest_name);
+						fileview->Update();
+						fileview->SelectItem(dest_name);
+
+						files_to_open.AddItem(smal_strdup(dest_name));
+					}
 					
 					delete fname;
 				}

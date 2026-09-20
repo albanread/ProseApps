@@ -135,6 +135,25 @@ void ProcessKey(EditView *ev, int key)
 uint flags = GetKeyAttr(key);
 char MergeToPrior = 0;
 
+	// A key the editor cannot type -- anything above ASCII: it keeps a byte
+	// to a column, and only the first byte of the character arrives here --
+	// is dropped before it does anything. It was dropped in the "default"
+	// case below, after the selection had been deleted for it and an empty
+	// undo group begun: a selection, then e-acute, and the text was gone.
+	switch(key)
+	{
+		case B_ESCAPE: case B_LEFT_ARROW: case B_RIGHT_ARROW: case B_UP_ARROW:
+		case B_DOWN_ARROW: case B_PAGE_DOWN: case B_PAGE_UP: case B_HOME:
+		case B_END: case KEY_MOUSEWHEEL_DOWN: case KEY_MOUSEWHEEL_UP:
+		case B_ENTER: case B_TAB: case B_BACKSPACE: case B_DELETE:
+		break;
+
+		default:
+			if (key > 127 || key < 9)
+				return;
+		break;
+	}
+
 	// free xseek mode
 	if (ev->cursor.xseekmode != CM_FREE)
 	{

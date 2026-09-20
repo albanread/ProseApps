@@ -317,7 +317,18 @@ FILE *fp;
 		frees(buffer);
 	}
 
-	fclose(fp);
+	// A write that failed (a full disk) has to be reported: the callers
+	// clear the document's dirty flag on success, and the next thing the
+	// user does may be to close it. None of this was checked.
+	bool failed = ferror(fp);
+	if (fclose(fp) != 0) failed = true;
+
+	if (failed)
+	{
+		staterr("EditView::Save(): error writing '%s'", filename);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -333,8 +344,9 @@ int i;
 	{
 		if (ev->IsDirty && !ev->IsUntitled)
 		{
-			ev->Save(ev->filename);
-			ev->ClearDirty();
+			// one that could not be written stays dirty
+			if (!ev->Save(ev->filename))
+				ev->ClearDirty();
 		}
 	}
 }

@@ -132,6 +132,8 @@ void ColorView::MessageReceived(BMessage *msg)
 		{
 			rgb_color newColor;
 			int32 colorindex;
+
+			newColor.alpha = 255;	// as ColorFromHex() gives every other colour
 			
 			// we are only casting from uint8 to int8 so this is safe
 			msg->FindInt8("red", (int8 *)&newColor.red);

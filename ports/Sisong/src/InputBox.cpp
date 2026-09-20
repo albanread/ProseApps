@@ -6,6 +6,7 @@
 #include <Button.h>
 #include <String.h>
 #include <Window.h>
+#include <Looper.h>
 #include <View.h>
 
 #include "../common/basics.h"
@@ -26,6 +27,10 @@ BString *retval;
 
 	box = new InputBox(parent, title, prompt, initialValue);
 	
+	// we are on a window's thread, which handles nothing while we wait here:
+	// let it at least redraw, as BAlert::Go() does
+	BWindow *caller = dynamic_cast<BWindow *>(BLooper::LooperForThread(find_thread(NULL)));
+
 	stat("InputBox::Go(): entering snooze loop");
 	for(;;)
 	{
@@ -34,6 +39,9 @@ BString *retval;
 		{
 			break;
 		}
+
+		if (caller)
+			caller->UpdateIfNeeded();
 	}
 	
 	if (box->fCanceled)
@@ -98,9 +106,11 @@ void InputBox::DispatchMessage(BMessage *msg, BHandler *handler)
 			{
 				if (*bytes == B_ESCAPE)
 				{
+					// only say so: Go() is polling these flags in this
+					// object, and closes the window itself. Quit() here
+					// deleted the window under it.
 					fCanceled = true;
 					fBoxDone = true;
-					Quit();
 				}
 			}
 		}

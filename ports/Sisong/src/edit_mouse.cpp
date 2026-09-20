@@ -155,6 +155,16 @@ clLine *line;
 	int line_length = line->GetLength();
 	if (ccx >= line_length) ccx = line_length-1;
 
+	// an empty line has no character to be in the left or right half of. It
+	// made ccx -1 here: the byte before the line's text was read, and a click
+	// in the left half of the first cell left the cursor at column -1.
+	if (ccx < 0)
+	{
+		*x_inout = 0;
+		*y_inout = cy;
+		return 0;
+	}
+
 	// get half the width of the clicked char in px
 	char ch = line->GetCharAtIndex(ccx);
 	int halfchwidth = (ch==TAB) ? (TAB_WIDTH * editor.font_width)/2 : editor.font_width/2;

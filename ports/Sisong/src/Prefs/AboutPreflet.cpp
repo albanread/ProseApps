@@ -40,11 +40,15 @@ static const rgb_color colors[] =
 
 AboutPreflet::AboutPreflet(PrefsWindow *parent)
 	: Preflet(parent),
-	  fTimer(NULL)
+	  fTimer(NULL),
+	  rotate_frame(0)	// was never set: a negative leftover indexed colors[] far out of bounds
 {
 BRect rc;
 
 	int i;
+
+	for(i=0;i<10;i++)
+		LogoChars[i] = NULL;
 
 	#define XTRA_SPACING		1
 	#define TINT_AMT			1.1f

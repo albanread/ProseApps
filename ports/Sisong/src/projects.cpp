@@ -134,7 +134,7 @@ char tempbuffer[MAXPATHLEN];
 
 	projectPath->Append(name);
 
-	if (mkdir(projectPath->String(), 0xffffffff))
+	if (mkdir(projectPath->String(), 0755))	// was 0xffffffff
 	{
 		delete projectPath;
 		return NULL;

@@ -211,20 +211,33 @@ int lockcount = 0;
 			UnlockLooper();
 	}
 
-	// try to exit gracefully
+	// try to exit gracefully.
+	//
+	// The thread releases quit_ack once, as the last thing it does, whether
+	// it was asked to stop or ran to its end; only this side deletes the
+	// semaphore and forgets the thread. (It used to be the thread that did
+	// both when it finished by itself. If it looked at please_quit just before
+	// we set it, it deleted the semaphore under our wait, the wait failed at
+	// once, and we killed a thread that was still running -- inside malloc,
+	// with luck not. The script command "hide" made the two meet.)
 	stat("aborting compile thread");
 	thread.please_quit = true;
-	ok = acquire_sem_etc(thread.quit_ack, 1, B_RELATIVE_TIMEOUT, 500 * 1000);
+	ok = acquire_sem_etc(thread.quit_ack, 1, B_RELATIVE_TIMEOUT, 2000 * 1000);
+
+	if (ok == B_NO_ERROR)
+	{	// it has said it is done: let it get out of its function
+		status_t result;
+		wait_for_thread(CompileThread, &result);
+	}
+	else
+	{	// time to get the mallet: it is stuck somewhere
+		stat("compile thread still hasn't quit, getting the mallet");
+		kill_thread(CompileThread);
+	}
 
 	// lock looper back the way we found it
 	for(int i=0;i<lockcount;i++)
 		LockLooper();
-
-	if (ok != B_NO_ERROR)
-	{	// time to get the mallet
-		stat("compile thread still hasn't quit, getting the mallet");
-		kill_thread(CompileThread);
-	}
 
 	delete_sem(thread.quit_ack);
 	CompileThread = -1;
@@ -249,7 +262,9 @@ void c------------------------------() {}
 int CompilePane::RunScriptInternal(char *scriptname)
 {
 FILE *fp;
-char line[MAXPATHLEN + 10];
+char *line = NULL;
+size_t linesize = 0;
+ssize_t len;
 char olddir[MAXPATHLEN];
 int exitcode = 0;
 bool scriptEmpty = true;
@@ -266,16 +281,20 @@ bool scriptEmpty = true;
 
 		AddLine(str.String(), color_error, false);
 
-		delete_sem(thread.quit_ack);
+		release_sem(thread.quit_ack);	// see AbortThread()
 		return -1;
 	}
 
 	// save current working directory in case script changes it
 	getcwd(olddir, sizeof(olddir));
 
-	while(!feof(fp))
+	// Whole lines, however long: read into MAXPATHLEN + 10 bytes, a longer
+	// line -- the link line of a project of many files -- came in as two, and
+	// its tail was run as a command of its own.
+	while((len = getline(&line, &linesize, fp)) >= 0)
 	{
-		fgetline(fp, line, sizeof(line) - 1);
+		while(len > 0 && (line[len - 1] == 13 || line[len - 1] == 10))
+			line[--len] = 0;
 
 		if (!*line) continue;
 		if (line[0] == '#') continue;
@@ -304,6 +323,7 @@ bool scriptEmpty = true;
 
 	chdir(olddir);
 	fclose(fp);
+	free(line);
 
 	if (scriptEmpty)
 	{
@@ -312,17 +332,8 @@ bool scriptEmpty = true;
 	}
 
 	//stat("C thread going bye bye, please_quit=%d", thread.please_quit);
-	if (thread.please_quit)
+	if (!thread.please_quit)
 	{
-		release_sem(thread.quit_ack);
-	}
-	else
-	{
-		delete_sem(thread.quit_ack);
-
-		CompileThread = -1;
-		thread.quit_ack = -1;
-
 		if (fHasErrors)
 		{
 			if (editor.settings.build.JumpToErrors && \
@@ -353,6 +364,8 @@ bool scriptEmpty = true;
 		}
 	}
 
+	// done, asked to or not: the last thing this thread does (AbortThread())
+	release_sem(thread.quit_ack);
 	return exitcode;
 }
 
@@ -378,7 +391,7 @@ int CompilePane::RunScriptLine(const char *line)
 	{
 		if (!fHasErrors)
 			if (!MainWindow->top.menubar->ShowConsoleItem->IsMarked())
-				MainWindow->PostMessage(new BMessage(M_POPUPPANE_CLOSE));
+				MainWindow->PostMessage(M_POPUPPANE_CLOSE);
 
 		return 1;
 	}
@@ -460,7 +473,20 @@ int exitstat;
 	// increase priority for a sec--we don't want child to inherit our low priority
 	set_thread_priority(find_thread(0), B_NORMAL_PRIORITY);
 
-	child = vfork();
+	// fork(), not vfork(): here vfork() is the bare system call, without the
+	// heap's fork hooks, and this program has other threads. If one of them
+	// held a malloc lock at that instant, the child -- whose execv() allocates
+	// -- waited for it for ever, holding the pipes open.
+	child = fork();
+	if (child < 0)
+	{
+		close(pfd[0]); close(pfd[1]);
+		close(epfd[0]); close(epfd[1]);
+		set_thread_priority(find_thread(0), COMPILE_THREAD_PRIORITY);
+		AddLine("** cannot start a process (fork failed)", color_error, false);
+		return -1;
+	}
+
 	if (child == 0)
 	{	// this is the child
 		// redirect stdout/stderr
@@ -523,7 +549,9 @@ int exitstat;
 		sprintf(str, "compile thread aborting: killing child PID %d", (int)child);
 		AddLine(str, color_warning, false);
 
-		kill(-child, SIGKILL);
+		kill(-child, SIGKILL);		// its process group, and
+		kill(child, SIGKILL);		// itself, should it not have made the group yet
+		waitpid(child, &exitstat, 0);	// it was left a zombie
 		exitstat = -1;
 	}
 	else

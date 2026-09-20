@@ -325,6 +325,10 @@ static rgb_color ColorFromHex(const char *hcol)
 {
 rgb_color result;
 
+	// alpha was left unset; rgb_color's == compares it, and the preferences'
+	// Revert button goes by that comparison
+	result.alpha = 255;
+
 	if (*hcol=='#') hcol++;
 	
 	if (strlen(hcol) < 6)

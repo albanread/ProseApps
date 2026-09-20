@@ -1,0 +1,36 @@
+Update 03/07/2020
+
+This patches it to compile on modern systems.
+
+It will compile as-is with just a clone and make on 64-bit systems.
+
+For 32-bit systems:
+
+	* To compile with GCC2.95, "cp Makefile.gcc2 Makefile"
+
+	* To use modern GCC, do a "setarch x86" before building.
+
+----------
+
+
+SISONG editor/IDE source code
+SVN VERSION
+
+(c)2009 Caitlin Shaw
+GPL/3; see accompanying LICENSE for details
+
+
+TO BUILD:
+
+cd into "src" directory and execute "make". The executable produced will be named "line".
+
+If you are planning to modify the source beyond minor hacks, you should be using "makegen" in your compile procedure. This program generates the "Makefile" from "makelist.ml" and is the way that all the "fdh" files (which handle automatic function prototyping of C-style functions) get generated. Copy the include "makegen" executable to "/bin" or place it in the "line" directory.
+
+You can develop from within Sisong itself with a build script like this:
+
+cd [path_to_"line"_subdirectory]
+makegen
+make -j2
+%line -test
+
+Change "-j2" to equal the number of processors in your system for optimal compile speed. I have a dual-core, so it is 2 here.

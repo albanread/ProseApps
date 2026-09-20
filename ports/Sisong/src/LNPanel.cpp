@@ -119,7 +119,7 @@ void LNPanel::SetNumVisibleLines(int count)
 void LNItem::SetNumber(LNPanel *parent, int new_no)
 {
 	// build string to draw
-	sprintf(StringToDraw, "%d", new_no);
+	snprintf(StringToDraw, sizeof(StringToDraw), "%d", new_no);
 	
 	// get X coordinate that aligns the number with right edge
 	parent->LockLooper();

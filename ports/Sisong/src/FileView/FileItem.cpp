@@ -12,6 +12,7 @@
 #include <Message.h>
 #include <View.h>
 #include <File.h>
+#include <Entry.h>
 #include <NodeInfo.h>
 #include <Mime.h>
 
@@ -203,43 +204,41 @@ void c------------------------------() {}
 
 void FileItem::SetSizeText(const char *fname)
 {
-FILE *fp;
-unsigned int fileSize;
+off_t fileSize;
 
-	// get file size
-	fp = fopen(fname, "rb");
-	if (!fp)
+	// get file size, from the entry: this opened every file of a folder to
+	// seek to its end -- device nodes too, if the folder was under /dev --
+	// and kept the size in 32 bits
+	BEntry entry(fname);
+	if (entry.InitCheck() != B_OK || entry.GetSize(&fileSize) != B_OK)
 	{
 		strcpy(fFileSize, "-");
 		return;
 	}
-	fseek(fp, 0, SEEK_END);
-	fileSize = ftell(fp);
-	fclose(fp);
-	
+
 	#define GIGABYTE		1073741824
 	#define MEGABYTE		1048576
 	#define KILOBYTE		1024
 	double fs = fileSize;
-	
+
 	if (fileSize >= GIGABYTE)
 	{
 		fs /= GIGABYTE;
-		sprintf(fFileSize, "%.2f GB", fs);
+		snprintf(fFileSize, sizeof(fFileSize), "%.2f GB", fs);
 	}
 	else if (fileSize >= MEGABYTE)
 	{
 		fs /= MEGABYTE;
-		sprintf(fFileSize, "%.2f MB", fs);
+		snprintf(fFileSize, sizeof(fFileSize), "%.2f MB", fs);
 	}
 	else if (fileSize >= KILOBYTE)
 	{
 		fs /= KILOBYTE;
-		sprintf(fFileSize, "%.2f KB", fs);
+		snprintf(fFileSize, sizeof(fFileSize), "%.2f KB", fs);
 	}
 	else
 	{
-		sprintf(fFileSize, "%d bytes", fileSize);
+		snprintf(fFileSize, sizeof(fFileSize), "%d bytes", (int)fileSize);
 	}
 }
 

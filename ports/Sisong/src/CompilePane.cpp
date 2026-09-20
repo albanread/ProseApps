@@ -394,6 +394,14 @@ int CompilePane::RunScriptLine(const char *line)
 	//
 	// this is real messy
 	FILE *fp = fopen(fTempScriptFile, "wt");
+	if (!fp)
+	{
+		BString str = "cannot write ";
+		str.Append(fTempScriptFile);
+		AddLine(str.String(), color_error, false);
+		return -1;
+	}
+
 	fprintf(fp, "%s\n", line);
 	fprintf(fp, "exit $?\n");
 	fclose(fp);
@@ -477,7 +485,10 @@ int exitstat;
 
 		// this message is received by the code below, as if we were the child app.
 		fprintf(stderr, "** failed exec of '%s'\n", program);
-		exit(EXEC_FAILED_CODE);
+		fflush(stderr);
+		// _exit: we are a fork of a program with many threads and live
+		// windows; exit() would run its atexit handlers and destructors here
+		_exit(EXEC_FAILED_CODE);
 	}
 
 	set_thread_priority(find_thread(0), COMPILE_THREAD_PRIORITY);

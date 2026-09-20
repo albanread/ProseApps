@@ -5,8 +5,10 @@
 
 EditView::EditView()
 {
-	// zero out all the structures inside the ev
-	memset(this, 0, sizeof(EditView));
+	// zero out all the structures inside the ev.
+	// (Safe for this class: no virtual functions, and every member down to
+	// DocPoint is plain data. The cast says so to the compiler.)
+	memset((void *)this, 0, sizeof(EditView));
 
 	DocID = editor.NextDocID++;
 	cursor.ev = this;

@@ -1172,7 +1172,9 @@ int SearchInFile(const char *filename, const char *search_string, int options)
 char *(*StringScanner)(const char *haystack, const char *needle, int needle_length);
 int needle_length = strlen(search_string);
 FILE *fp;
-char line[8000];
+char *line = NULL;
+size_t linesize = 0;
+ssize_t len;
 char *seek, *hit;
 int lineNo = 0, x;
 int count = 0;
@@ -1182,9 +1184,12 @@ int count = 0;
 
 	StringScanner = GetStringScanner(options);
 
-	while(!feof(fp))
+	// whole lines, however long: read into char[8000], a longer line counted
+	// as several and every hit after it was reported on the wrong line
+	while((len = getline(&line, &linesize, fp)) >= 0)
 	{
-		fgetline(fp, line, sizeof(line));
+		while(len > 0 && (line[len - 1] == 13 || line[len - 1] == 10))
+			line[--len] = 0;
 
 		// scan the line for hits
 		seek = line;
@@ -1203,6 +1208,7 @@ int count = 0;
 		lineNo++;
 	}
 
+	free(line);
 	fclose(fp);
 	return count;
 }

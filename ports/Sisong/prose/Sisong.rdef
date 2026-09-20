@@ -17,12 +17,12 @@ resource app_version {
 	long_info = "Sisong 2.16 ©2009 Caitlin Shaw. GPL 3."
 };
 
+/* Any text, and source code by name. Only types the system already has: a
+ * type it does not know (text/x-shellscript was here) is created by mimeset
+ * when the package is made, with Sisong as its preferred application. */
 resource file_types message {
-	"types" = "text/plain",
-	"types" = "text/x-source-code",
-	"types" = "text/x-makefile",
-	"types" = "text/x-jamfile",
-	"types" = "text/x-shellscript"
+	"types" = "text",
+	"types" = "text/x-source-code"
 };
 
 /* The icon: prose/Sisong.svg through tools/artwork/hviftool.py (Prose repository):

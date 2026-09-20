@@ -254,8 +254,17 @@ FLResult *result;
 
 	count = NewResults.CountItems();
 
+	// the list does not own its items: MakeEmpty() alone left every one of
+	// them behind, once a second while typing
+	BList old;
+	for(i=0;i<list->CountItems();i++)
+		old.AddItem(list->ItemAt(i));
+
 	list->MakeEmpty();
 	LineNumbers.MakeEmpty();
+
+	for(i=0;i<old.CountItems();i++)
+		delete (BListItem *)old.ItemAt(i);
 
 	for(i=0;i<count;i++)
 	{

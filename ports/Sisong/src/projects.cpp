@@ -26,8 +26,13 @@ int i, count;
 		delete menu->RemoveItem(i);
 
 	// check the filesystem for a list of projects
-	if (!GetConfigDir(configdir)) return;
-	if (GetDirectoryContents(configdir, NULL, NULL, &projects)) return;
+	// (these two returned with ChangeMenusLock still held)
+	if (!GetConfigDir(configdir) || \
+		GetDirectoryContents(configdir, NULL, NULL, &projects))
+	{
+		MainWindow->top.menubar->ChangeMenusLock.Unlock();
+		return;
+	}
 
 	projects.SortItems(sortFunc);
 

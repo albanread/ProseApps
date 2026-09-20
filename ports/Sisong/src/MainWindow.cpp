@@ -351,6 +351,20 @@ EditView *ev = NULL;
 
 	LockLooper();
 
+	// The empty "new 1" the editor starts with has served its purpose once a
+	// real file is open beside it: a file opened from Tracker or the command
+	// line should not come with a blank tab. Only if nothing was done to it.
+	EditView *blank = NULL;
+	if (editor.DocList->CountItems() == 1)
+	{
+		EditView *only = (EditView *)editor.DocList->ItemAt(0);
+		if (only && only->IsUntitled && !only->IsDirty && \
+			only->nlines == 1 && only->firstline->GetLength() == 0)
+		{
+			blank = only;
+		}
+	}
+
 	for(i=0;i<count;i++)
 	{
 		if (message->FindRef("refs", i, &ref) == B_OK)
@@ -372,7 +386,12 @@ EditView *ev = NULL;
 		}
 	}
 
-	if (ev) top.tabbar->SetActiveTab(ev);
+	if (ev)
+	{
+		top.tabbar->SetActiveTab(ev);
+		if (blank && blank != ev)
+			blank->Close(false);
+	}
 	DismissFilePanel();	// harmless if file panel isn't open
 	UnlockLooper();
 }

@@ -62,8 +62,9 @@ Found by running it on Prose (arm64, QEMU/HVF), then by reading.
   selection on a grid of cells and drew with `be_fixed_font` as it found it.
   That font is only as fixed as the fonts installed: the Prose image has
   "Noto Mono", the app_server's default fixed family is "Noto Sans Mono",
-  and its fallback gave a proportional serif, so every token stood apart
-  from its columns. `CFontDrawer` now uses `be_fixed_font` if it is fixed
+  and its fallback gave "Bitstream Charter", a proportional serif
+  (measured on the image of 2026-09-20), so every token stood apart from
+  its columns. `CFontDrawer` now uses `be_fixed_font` if it is fixed
   and otherwise the first fixed family there is (`GetFixedFont()`), and it
   draws every character at its cell instead of letting the server advance
   by the font's own, possibly fractional, width. The build and search

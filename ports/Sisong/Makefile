@@ -19,14 +19,21 @@ RC       ?= rc
 XRES     ?= xres
 MIMESET  ?= mimeset
 
+# What the code needs, whatever else is asked for:
 # -fsigned-char: the code was written for x86, where plain char is signed,
 # and leans on it (characters compared with -1, negative deltas kept in
 # chars). On arm64 plain char is unsigned; this keeps the meaning the code
 # was written and tested with. It changes no ABI: only how this program's own
 # code widens a char.
 # -fno-strict-aliasing: the code reads buffers through casted pointers.
-CXXFLAGS ?= -O2 -g
-CXXFLAGS += -fsigned-char -fno-strict-aliasing -std=gnu++17
+PORTFLAGS := -fsigned-char -fno-strict-aliasing -std=gnu++17
+
+# What may be chosen: make OPTIMIZE=-O0, make DEBUG= (the package is built
+# without debug information), make CXXFLAGS=... for anything more. These are
+# apart from PORTFLAGS so that a CXXFLAGS on the command line, which replaces
+# the variable, cannot take -fsigned-char away.
+OPTIMIZE ?= -O2
+DEBUG    ?= -g
 WARNINGS := -Wall -Wno-multichar -Wno-write-strings -Wno-unused-function \
 	-Wno-unused-variable -Wno-unused-but-set-variable -Wno-sign-compare \
 	-Wno-reorder -Wno-parentheses -Wno-comment -Wno-narrowing \
@@ -76,7 +83,7 @@ $(APP): $(OBJS) $(RSRC)
 # directory ("../common/basics.h"), which works from anywhere
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(WARNINGS) -MMD -MP -c $< -o $@
+	$(CXX) $(OPTIMIZE) $(DEBUG) $(CXXFLAGS) $(PORTFLAGS) $(WARNINGS) -MMD -MP -c $< -o $@
 
 $(RSRC): $(RDEF)
 	@mkdir -p $(dir $@)

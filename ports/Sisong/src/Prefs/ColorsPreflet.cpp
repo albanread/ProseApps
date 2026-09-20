@@ -296,7 +296,7 @@ void ColorsPreflet::MessageReceived(BMessage *msg)
 			if (alert->Go())
 			{
 				ColorScheme::ResetToDefaults();
-				CurrentColorScheme.LoadScheme(1);
+				CurrentColorScheme.LoadScheme(ColorScheme::DefaultSchemeIndex());
 				UpdateSchemesMenu();
 				
 				editor.curev->FullRedrawView();

@@ -6,7 +6,7 @@
 #include "colors.fdh"
 
 ColorScheme CurrentColorScheme;
-const int kCurrentSchemeVersion = 2;
+const int kCurrentSchemeVersion = 3;	// 3: Paper and Midnight Blue lead the built-in schemes
 
 
 static const char *color_names[] =
@@ -30,6 +30,59 @@ static const char *color_names[] =
 	"Tab line",
 	"Tab line (active)",
 	"Cursor"
+};
+
+// The port's two schemes, and its defaults: paper for a light desktop, a dark
+// blue for a dark one. Every ink was checked against its ground (WCAG contrast:
+// text 13:1 and 12:1, no token under 4.5:1). The pairs are foreground and
+// background; Selection, Tab line and Cursor use the first of their pair,
+// and the search results pane draws a selected row in Selection's second.
+#define PAPER		{ 0xfb, 0xf5, 0xdc }
+static const rgb_color scheme_Paper[] =
+{
+	{ 0x2b, 0x2a, 0x26 }, PAPER,					// text
+	{ 0x1b, 0x4f, 0x9c }, PAPER,					// id (keywords, types)
+	{ 0x5a, 0x4a, 0x2f }, PAPER,					// operator
+	{ 0x7a, 0x3e, 0x9d }, PAPER,					// system constant
+	{ 0xa8, 0x48, 0x0c }, PAPER,					// number
+	{ 0x0b, 0x6e, 0x66 }, PAPER,					// pp
+	{ 0x6b, 0x70, 0x58 }, PAPER,					// line comment
+	{ 0x6b, 0x70, 0x58 }, PAPER,					// block comment
+	{ 0x2c, 0x7a, 0x30 }, PAPER,					// string
+	{ 0x4b, 0x74, 0x10 }, PAPER,					// single string
+	{ 0xc0, 0x26, 0x1f }, PAPER,					// broken string
+	{ 0x33, 0x31, 0x2b }, PAPER,					// brace
+	{ 0x1b, 0x1b, 0x1b }, { 0xff, 0xd7, 0x5e },		// matched brace
+	{ 0xff, 0xff, 0xff }, { 0xd3, 0x2f, 0x2f },		// broken brace
+	{ 0x85, 0x7d, 0x5e }, { 0xf1, 0xe9, 0xc8 },		// line numbers
+	{ 0xbf, 0xd8, 0xfb }, { 0xbf, 0xd8, 0xfb },		// selection
+	{ 0xdd, 0xd3, 0xae }, PAPER,					// tabline
+	{ 0x3d, 0x7b, 0xd9 }, PAPER,					// tabline (active)
+	{ 0x1b, 0x1b, 0x1b }, PAPER						// cursor
+};
+
+#define MIDNIGHT	{ 0x13, 0x23, 0x3f }
+static const rgb_color scheme_Midnight[] =
+{
+	{ 0xdd, 0xe5, 0xee }, MIDNIGHT,					// text
+	{ 0xff, 0xc6, 0x6d }, MIDNIGHT,					// id (keywords, types)
+	{ 0xb7, 0xc3, 0xd0 }, MIDNIGHT,					// operator
+	{ 0xd7, 0xa6, 0xff }, MIDNIGHT,					// system constant
+	{ 0xff, 0x9e, 0x80 }, MIDNIGHT,					// number
+	{ 0x6f, 0xd6, 0xc6 }, MIDNIGHT,					// pp
+	{ 0x7e, 0x93, 0xab }, MIDNIGHT,					// line comment
+	{ 0x7e, 0x93, 0xab }, MIDNIGHT,					// block comment
+	{ 0xa5, 0xd6, 0xa7 }, MIDNIGHT,					// string
+	{ 0xc5, 0xe1, 0xa5 }, MIDNIGHT,					// single string
+	{ 0xff, 0x7b, 0x72 }, MIDNIGHT,					// broken string
+	{ 0xe6, 0xec, 0xf3 }, MIDNIGHT,					// brace
+	{ 0x13, 0x23, 0x3f }, { 0xff, 0xc6, 0x6d },		// matched brace
+	{ 0xff, 0xff, 0xff }, { 0xd8, 0x43, 0x3b },		// broken brace
+	{ 0x6f, 0x86, 0xa3 }, { 0x0e, 0x1b, 0x33 },		// line numbers
+	{ 0x2e, 0x4c, 0x7e }, { 0x2e, 0x4c, 0x7e },		// selection
+	{ 0x25, 0x37, 0x5a }, MIDNIGHT,					// tabline
+	{ 0x5c, 0x9d, 0xff }, MIDNIGHT,					// tabline (active)
+	{ 0xff, 0xff, 0xff }, MIDNIGHT					// cursor
 };
 
 static const rgb_color scheme_Eggplant[] =
@@ -206,26 +259,58 @@ void c------------------------------() {}
 // create the default color schemes from the built in settings.
 void ColorScheme::_FirstTimeInit()
 {
+	InitDefaultsIfNeeded();
+}
+
+// The same, for whoever wants to know that it happened: the index of the
+// scheme last used means nothing among a new set of schemes.
+bool ColorScheme::InitDefaultsIfNeeded()
+{
 	if (!SchemeExists(0) || \
 		settings->GetInt("ColorSchemeVersion", 0) != kCurrentSchemeVersion)
 	{
 		stat("! ColorScheme::_FirstTimeInit: setting up default colorschemes");
 		settings->SetInt("ColorSchemeVersion", kCurrentSchemeVersion);
 		ResetToDefaults();
+		return true;
 	}
+
+	return false;
+}
+
+// the built-in schemes, in the order of the Settings menu
+static const struct
+{
+	const char *name;
+	const rgb_color *colors;
+} default_schemes[] =
+{
+	{ "Paper", scheme_Paper },
+	{ "Midnight Blue", scheme_Midnight },
+	{ "Eggplant Sea", scheme_Eggplant },
+	{ "Maroon Mountain", scheme_Brown },
+	{ "Lightbulb City", scheme_Lightbulb },
+	{ "Console Caves", scheme_Console },
+	{ "Hallows Eve", scheme_Hallow },
+	{ NULL, NULL }
+};
+
+// The scheme a new user starts with: Paper, or Midnight Blue on a desktop
+// whose own document background is dark.
+int ColorScheme::DefaultSchemeIndex()
+{
+	return ui_color(B_DOCUMENT_BACKGROUND_COLOR).IsDark() ? 1 : 0;
 }
 
 void ColorScheme::ResetToDefaults()
 {
-	while(GetNumColorSchemes() > 4)
+	// all of them go, the user's too (the preferences' button says so)
+	while(GetNumColorSchemes() > 1)
 		DeleteScheme(0);
 	
 	ColorScheme temp;
-	temp._CreateDefaultScheme("Eggplant Sea", scheme_Eggplant, 0);
-	temp._CreateDefaultScheme("Maroon Mountain", scheme_Brown, 1);
-	temp._CreateDefaultScheme("Lightbulb City", scheme_Lightbulb, 2);
-	temp._CreateDefaultScheme("Console Caves", scheme_Console, 3);
-	temp._CreateDefaultScheme("Hallows Eve", scheme_Hallow, 4);
+	for(int i=0;default_schemes[i].name;i++)
+		temp._CreateDefaultScheme(default_schemes[i].name, default_schemes[i].colors, i);
 	
 	if (MainWindow)
 		MainWindow->top.menubar->UpdateColorSchemesMenu();
@@ -290,6 +375,7 @@ int i;
 	if (this == &CurrentColorScheme)
 	{
 		MainWindow->top.menubar->SetMarkedColorScheme(schemeNo);
+		MainWindow->EditorColorsChanged();
 	}
 }
 
@@ -609,12 +695,18 @@ void ColorScheme::SetFGColor(int index, rgb_color new_color)
 {
 	if (index >= 0 && index < MAX_COLORS)
 		_colors[index].fg = new_color;
+
+	if (this == &CurrentColorScheme && MainWindow)
+		MainWindow->EditorColorsChanged();
 }
 
 void ColorScheme::SetBGColor(int index, rgb_color new_color)
 {
 	if (index >= 0 && index < MAX_COLORS)
 		_colors[index].bg = new_color;
+
+	if (this == &CurrentColorScheme && MainWindow)
+		MainWindow->EditorColorsChanged();
 }
 
 void ColorScheme::SetBoldState(int index, bool boldState)

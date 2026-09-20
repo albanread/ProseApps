@@ -46,6 +46,25 @@ BRect rc;
 	main.editarea = new CEditArea(rc, B_FOLLOW_ALL);
 	AddChild(main.editarea);
 
+	// init color scheme, before the panes that are made in its colours.
+	// The scheme last used is kept by its index, which means nothing once
+	// the built-in schemes have been replaced by a newer set: then, and for
+	// a new user, it is the default (Paper, or Midnight Blue on a dark desktop).
+	popup.pane = NULL;
+	popup.searchresults = NULL;
+	popup.compile = NULL;
+	popup.buildhelp = NULL;
+	{
+		bool fresh = ColorScheme::InitDefaultsIfNeeded();
+		int scheme = ColorScheme::DefaultSchemeIndex();
+		if (!fresh)
+			scheme = settings->GetInt("SelectedColorScheme", scheme);
+		if (!ColorScheme::SchemeExists(scheme))
+			scheme = ColorScheme::DefaultSchemeIndex();
+
+		CurrentColorScheme.LoadScheme(scheme);
+	}
+
 	// popup panes
 	popup.pane = new PopupPane();
 	popup.searchresults = new SearchResultsPane();
@@ -54,13 +73,9 @@ BRect rc;
 
 	// this is a joke that nobody will get, a reference to an easter egg in
 	// the firmware of something called "Mirack".
-	static const rgb_color green = { 0, 255, 0 };
 	popup.pane->SetContents("Build", popup.compile);
-	popup.compile->AddLine("Bunnies, enchiladas, and tin.", green, false);
-	popup.compile->AddLine(" ;-)", green, false);
-
-	// init color scheme
-	CurrentColorScheme.LoadScheme(settings->GetInt("SelectedColorScheme", 1));
+	popup.compile->AddLine("Bunnies, enchiladas, and tin.", CompilePane::Ink(CompilePane::INK_SCRIPTNAME), false);
+	popup.compile->AddLine(" ;-)", CompilePane::Ink(CompilePane::INK_SCRIPTNAME), false);
 
 	// cursor-flashing pulsar thread
 	cursor_timer = new CViewTimer(this, M_CURSOR_TIMER, 100);
@@ -95,6 +110,24 @@ CMainWindow::~CMainWindow()
 	settings->SetInt("window_right", (int)Frame().right);
 	settings->SetInt("window_top", (int)Frame().top);
 	settings->SetInt("window_bottom", (int)Frame().bottom);
+}
+
+// The editor's colours changed (another scheme, or one colour edited in the
+// preferences): the panes under the text, and the strip beside it, show them
+// too. They used to keep the colours they were made with.
+void CMainWindow::EditorColorsChanged()
+{
+	if (popup.compile) popup.compile->ColorsChanged();
+	if (popup.buildhelp) popup.buildhelp->ColorsChanged();
+	if (popup.searchresults) popup.searchresults->ColorsChanged();
+
+	if (main.editarea && LockLooper())
+	{
+		main.editarea->Invalidate();
+		for(int32 i=0;i<main.editarea->CountChildren();i++)
+			main.editarea->ChildAt(i)->Invalidate();
+		UnlockLooper();
+	}
 }
 
 void CMainWindow::UpdateWindowTitle()

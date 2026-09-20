@@ -68,8 +68,8 @@ void BuildHelpPane::SetProjectBeingEdited(const char *name)
 
 void BuildHelpPane::PopupOpening()
 {
-static const rgb_color grey = { 192, 192, 192 };
-static const rgb_color yellow = { 250, 250, 0 };
+const rgb_color grey = CompilePane::Ink(CompilePane::INK_TEXT);
+const rgb_color yellow = CompilePane::Ink(CompilePane::INK_TITLE);
 	
 	Clear();
 

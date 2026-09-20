@@ -11,14 +11,85 @@
 // apps running at B_NORMAL_PRIORITY (10).
 #define COMPILE_THREAD_PRIORITY		8
 
-static rgb_color color_bg = { 0, 0, 0 };
-static rgb_color color_text = { 192, 192, 192 };
-static rgb_color color_error = { 225, 60, 60 };
-static rgb_color color_warning = { 255, 200, 90 };
-static rgb_color color_exec = { 190, 255, 190 };
-static rgb_color color_scriptname = { 100, 255, 100 };
-static rgb_color color_selection = { 30, 30, 30 };
-static rgb_color color_header = { 200, 30, 30 };
+// The pane's ground is the editor's, and its inks are chosen for that ground:
+// one set for a light ground, one for a dark one. (It was light inks on black
+// whatever the editor looked like.) Every ink is at least 4.5:1 against the
+// port's Paper and Midnight Blue grounds.
+static const rgb_color inks_on_light[CompilePane::NUM_INKS] =
+{
+	{ 0x3a, 0x39, 0x34, 255 },	// INK_TEXT
+	{ 0xb3, 0x26, 0x1e, 255 },	// INK_ERROR
+	{ 0x8a, 0x56, 0x00, 255 },	// INK_WARNING
+	{ 0x1f, 0x6b, 0x2a, 255 },	// INK_EXEC
+	{ 0x0b, 0x6e, 0x66, 255 },	// INK_SCRIPTNAME
+	{ 0x8c, 0x3b, 0x2e, 255 },	// INK_HEADER
+	{ 0x1b, 0x4f, 0x9c, 255 }	// INK_TITLE
+};
+
+static const rgb_color inks_on_dark[CompilePane::NUM_INKS] =
+{
+	{ 0xc8, 0xd0, 0xda, 255 },	// INK_TEXT
+	{ 0xff, 0x7b, 0x72, 255 },	// INK_ERROR
+	{ 0xff, 0xc8, 0x5a, 255 },	// INK_WARNING
+	{ 0xbe, 0xff, 0xbe, 255 },	// INK_EXEC
+	{ 0x64, 0xff, 0x64, 255 },	// INK_SCRIPTNAME
+	{ 0xff, 0x9e, 0x80, 255 },	// INK_HEADER
+	{ 0xff, 0xd7, 0x5e, 255 }	// INK_TITLE
+};
+
+rgb_color CompilePane::Ink(int which)
+{
+	if (which < 0 || which >= NUM_INKS) which = INK_TEXT;
+	return GetEditBGColor(COLOR_TEXT).IsDark() ? inks_on_dark[which] : inks_on_light[which];
+}
+
+#define color_bg			(GetEditBGColor(COLOR_TEXT))
+#define color_selection		(GetEditColor(COLOR_SELECTION))
+#define color_text			(CompilePane::Ink(CompilePane::INK_TEXT))
+#define color_error			(CompilePane::Ink(CompilePane::INK_ERROR))
+#define color_warning		(CompilePane::Ink(CompilePane::INK_WARNING))
+#define color_exec			(CompilePane::Ink(CompilePane::INK_EXEC))
+#define color_scriptname	(CompilePane::Ink(CompilePane::INK_SCRIPTNAME))
+#define color_header		(CompilePane::Ink(CompilePane::INK_HEADER))
+
+// The editor's colours changed: what the pane already shows changes with
+// them. A line keeps its meaning -- an ink of one set becomes the same ink
+// of the other -- and takes the new ground and selection colour.
+void CompilePane::ColorsChanged()
+{
+	if (!ListView) return;
+	bool locked = LockLooper();
+
+	rgb_color ground = color_bg;
+	rgb_color selection = color_selection;
+
+	ListView->SetViewColor(ground);
+	ListView->SetLowColor(ground);
+
+	for(int32 i=0;i<ListView->CountItems();i++)
+	{
+		ColoredStringItem *item = (ColoredStringItem *)ListView->ItemAt(i);
+		if (!item) continue;
+
+		rgb_color fg = item->Color();
+		for(int ink=0;ink<NUM_INKS;ink++)
+		{
+			if (fg == inks_on_light[ink] || fg == inks_on_dark[ink])
+			{
+				item->SetColor(Ink(ink));
+				break;
+			}
+		}
+
+		// a line that cannot be clicked has its ground as its selection colour
+		bool selectable = (item->SelectionColor() != item->BackgroundColor());
+		item->SetBackgroundColor(ground);
+		item->SetSelectionColor(selectable ? selection : ground);
+	}
+
+	ListView->Invalidate();
+	if (locked) UnlockLooper();
+}
 
 
 CompilePane::CompilePane()

@@ -57,6 +57,29 @@ void SearchResultsPane::PopupOpening()
 // call this to inform the search results pane what the search term is that
 // is being searched for. this is used to calculate the length of the selection
 // when clicking on a result, and also affects the text shown in the titlebar.
+// the editor's colours changed: the results shown take them
+void SearchResultsPane::ColorsChanged()
+{
+	if (!OnscreenList) return;
+	bool locked = LockLooper();
+
+	OnscreenList->SetViewColor(GetEditBGColor(COLOR_TEXT));
+	OnscreenList->SetLowColor(GetEditBGColor(COLOR_TEXT));
+
+	for(int32 i=0;i<OnscreenList->CountItems();i++)
+	{
+		ColoredStringItem *item = (ColoredStringItem *)OnscreenList->ItemAt(i);
+		if (!item) continue;
+
+		item->SetColor(GetEditFGColor(COLOR_TEXT));
+		item->SetBackgroundColor(GetEditBGColor(COLOR_TEXT));
+		item->SetSelectionColor(GetEditColor(COLOR_SELECTION));
+	}
+
+	OnscreenList->Invalidate();
+	if (locked) UnlockLooper();
+}
+
 void SearchResultsPane::SetSearchTerm(const char *newTerm)
 {
 	if (search_term) frees(search_term);
@@ -128,8 +151,10 @@ ColoredStringItem *item;
 	
 	bool locked = LockLooper();
 	
+	// selected in the colour the editor selects with (the first of the pair:
+	// the second, used here before, is white in every scheme upstream made)
 	item = new ColoredStringItem(str.String(), GetEditFGColor(COLOR_TEXT), \
-							GetEditBGColor(COLOR_TEXT), GetEditBGColor(COLOR_SELECTION));
+							GetEditBGColor(COLOR_TEXT), GetEditColor(COLOR_SELECTION));
 	OnscreenList->AddItem(item);
 	
 	ResultsList.AddItem((void *)result);

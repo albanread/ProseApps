@@ -6,7 +6,9 @@ brace matching, smart indenting, find and replace in a document, in all open
 documents and in files, projects with a build script, and a build pane that
 colours compiler output and jumps to the first error.
 
-![Sisong on Prose: its own FindBox.cpp open, the function list at the right](prose/screenshot.png)
+![Sisong on Prose in its Paper scheme: its own FindBox.cpp, the function list at the right, search results below](prose/screenshot.png)
+
+![The Midnight Blue scheme](prose/screenshot-midnight.png)
 
 | | |
 |---|---|
@@ -114,6 +116,25 @@ could be provoked.
   system does not know would be created by `mimeset` inside the package,
   with Sisong as its preferred application), and an icon (`prose/Sisong.svg`;
   upstream had none).
+
+**How it looks**
+
+- *Two new colour schemes, and they are the defaults.* **Paper**: dark ink on
+  a light yellow ground, like paper. **Midnight Blue**: light ink on a dark
+  blue ground, for a dark desktop. A new user gets Paper, or Midnight Blue if
+  the desktop's own document background is dark; both are at the top of the
+  Settings menu, above upstream's five (Maroon Mountain, its old default,
+  among them). Every ink was checked against its ground: text is 13:1 and
+  12:1, and no token is under 4.5:1. The scheme last used is remembered by
+  its index, so settings written before this set of schemes existed start on
+  the default.
+- *Everything that shows the editor's colours follows a change of scheme.*
+  The build, build help and search results panes were light inks on black
+  whatever the editor looked like, and kept the colours they were made with;
+  they take the editor's ground, inks chosen for a light or a dark ground,
+  and change with the scheme while they are showing. The strip between the
+  line numbers and the text was a black and white dither; it is a fine
+  dither of the gutter's own colours.
 
 **64 bits, arm64, gcc 13**
 

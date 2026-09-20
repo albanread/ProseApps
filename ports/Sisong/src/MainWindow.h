@@ -58,6 +58,7 @@ public:
 	virtual bool QuitRequested();
 
 	void UpdateWindowTitle();
+	void EditorColorsChanged();
 
 	CViewTimer *cursor_timer;
 	bool fDoingInstantQuit;

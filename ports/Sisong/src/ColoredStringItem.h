@@ -15,6 +15,9 @@ public:
 	void SetColor(rgb_color newColor);
 	void SetBackgroundColor(rgb_color newColor);
 	void SetSelectionColor(rgb_color newColor);
+	rgb_color Color() const { return fg; }
+	rgb_color BackgroundColor() const { return bg; }
+	rgb_color SelectionColor() const { return bg_selected; }
 	
 	virtual	void Update(BView* owner, const BFont* font);
 	virtual	status_t Perform(perform_code code, void* arg);

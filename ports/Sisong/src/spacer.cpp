@@ -23,12 +23,21 @@ BRect r(Bounds());
 	SetHighColor(GetEditBGColor(COLOR_TEXT));
 	FillRect(r);
 
-	// 50% grey pattern
+	// a fine dither of the line-number gutter's own two colours, its ink at
+	// a third strength: the strip still reads as something to click on, and
+	// belongs to whatever scheme is loaded. (It was black and white at 50%.)
 	r.left = 0;
 	r.right--;
 
-	SetHighColor(0xff, 0xff, 0xff);
-	SetLowColor(0x00, 0x00, 0x00);
+	rgb_color gutter = GetEditBGColor(COLOR_LINENUM);
+	rgb_color ink = GetEditFGColor(COLOR_LINENUM);
+	rgb_color mixed = gutter;
+	mixed.red = (uint8)((gutter.red * 2 + ink.red) / 3);
+	mixed.green = (uint8)((gutter.green * 2 + ink.green) / 3);
+	mixed.blue = (uint8)((gutter.blue * 2 + ink.blue) / 3);
+
+	SetHighColor(mixed);
+	SetLowColor(gutter);
 	FillRect(r, grey50);
 }
 

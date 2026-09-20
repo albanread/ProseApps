@@ -39,6 +39,8 @@ public:
 	ColorScheme(int schemeNo);
 	
 	static void ResetToDefaults();
+	static bool InitDefaultsIfNeeded();
+	static int DefaultSchemeIndex();
 	
 	void LoadScheme(int schemeNo);
 	void SaveScheme();
@@ -80,3 +82,9 @@ private:
 };
 
 extern ColorScheme CurrentColorScheme;
+
+// The colour accessors, declared for everyone. (The *.fdh files declare them
+// only for the files that used them when makegen last ran.)
+rgb_color GetEditColor(int colorNum);
+rgb_color GetEditFGColor(int colorNum);
+rgb_color GetEditBGColor(int colorNum);

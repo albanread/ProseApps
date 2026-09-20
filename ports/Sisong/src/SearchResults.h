@@ -22,6 +22,7 @@ public:
 	void SetSearchTerm(const char *newTerm);
 	void GetCaptionForTitlebar(BString *title);
 	void ChangeFontSize(int new_point_size);
+	void ColorsChanged();
 	
 	virtual void PopupOpening();
 

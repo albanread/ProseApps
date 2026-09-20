@@ -8,6 +8,12 @@ public:
 	void ChangeFontSize(int new_point_size);
 
 	void AddLine(const char *text, rgb_color lineColor, bool selectable);
+
+	// the pane's inks, for the editor's ground as it is now
+	enum { INK_TEXT, INK_ERROR, INK_WARNING, INK_EXEC, INK_SCRIPTNAME,
+		INK_HEADER, INK_TITLE, NUM_INKS };
+	static rgb_color Ink(int which);
+	void ColorsChanged();
 	void RunScript(bool run_result);
 	void SetScriptName(const char *fname);
 	void Clear();

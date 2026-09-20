@@ -65,6 +65,10 @@ could be provoked.
 
 **The system it runs on**
 
+- *The fonts it looks for.* It asks for JetBrains Mono and Fira Code before
+  the system's own monospaced families: both are in the Prose image (patch
+  0075) and both are made for reading code. `be_fixed_font` still wins when
+  the system's fixed font really is fixed.
 - *A fixed-width font that is fixed.* The editor places text, cursor and
   selection on a grid of cells and drew with `be_fixed_font` as it found it.
   That font is only as fixed as the fonts installed: the Prose image has

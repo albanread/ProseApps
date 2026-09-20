@@ -11,8 +11,11 @@
 // family the system has, the well-known ones first.
 static void UseFixedFamily(BFont *font)
 {
+	// fonts made for reading code first, then whatever monospaced family the
+	// system has
 	static const char *preferred[] =
-		{ "Noto Sans Mono", "Noto Mono", "DejaVu Sans Mono", "Liberation Mono", NULL };
+		{ "JetBrains Mono", "Fira Code", "Noto Sans Mono", "Noto Mono",
+		  "DejaVu Sans Mono", "Liberation Mono", NULL };
 
 	if (font->IsFixed())
 		return;

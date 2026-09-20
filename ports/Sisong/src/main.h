@@ -8,6 +8,7 @@ class EApp : public BApplication
 		~EApp();
 		
 		virtual void RefsReceived(BMessage *message);
+		virtual void ArgvReceived(int32 argc, char **argv);
 		virtual void MessageReceived(BMessage *msg);
 };
 

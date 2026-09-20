@@ -222,7 +222,7 @@ BFilePanel *panel;
 }
 
 
-char *run_template_selector(BMessage msg_to_deliver, BMessenger target)
+void run_template_selector(BMessage msg_to_deliver, BMessenger target)
 {
 TemplateLooper *looper;
 BMessenger *messenger;

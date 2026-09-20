@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<!-- Sisong's icon for Prose: a page of source in the editor's own "Maroon
+     Mountain" colours, line-number gutter on the left. Drawn for
+     tools/artwork/hviftool.py of the Prose repository (SVG -> HVIF); the
+     data-hvif-lod groups give the 16 pixel size fewer, thicker lines. -->
+<defs>
+<linearGradient id="page" gradientUnits="userSpaceOnUse" x1="12" y1="5" x2="52" y2="57">
+	<stop offset="0" stop-color="#6a1010"/><stop offset="1" stop-color="#2d0000"/>
+</linearGradient>
+<linearGradient id="gutter" gradientUnits="userSpaceOnUse" x1="12" y1="5" x2="14" y2="54">
+	<stop offset="0" stop-color="#a86014"/><stop offset="1" stop-color="#6e3600"/>
+</linearGradient>
+</defs>
+<!-- shadow -->
+<path d="M14 58 L58 61 L62 56 L56 50 Z" fill="#000000" fill-opacity="0.35"/>
+<!-- outline, then the page and its gutter -->
+<path d="M12 5 L52 9 L55 57 L9 53 Z" fill="none" stroke="#000000" stroke-width="4" stroke-linejoin="round"/>
+<path d="M12 5 L52 9 L55 57 L9 53 Z" fill="url(#page)"/>
+<path d="M12 5 L21 5.9 L18.5 53.8 L9 53 Z" fill="url(#gutter)"/>
+<g data-hvif-lod="0.3294 4">
+	<!-- a comment, an include, a keyword on its purple ground, text, a number -->
+	<path d="M25 13 L45 15" fill="none" stroke="#9a9a4a" stroke-width="3" stroke-linecap="round"/>
+	<path d="M25 20 L37 21.2" fill="none" stroke="#e78d58" stroke-width="3" stroke-linecap="round"/>
+	<path d="M23.5 25.4 L33.5 26.4 L33.2 31.4 L23.2 30.4 Z" fill="#5a1aa0"/>
+	<path d="M25 28 L32 28.7" fill="none" stroke="#ffff80" stroke-width="2" stroke-linecap="round"/>
+	<path d="M37 29.2 L48 30.3" fill="none" stroke="#ffbbbb" stroke-width="3" stroke-linecap="round"/>
+	<path d="M29 35.5 L43 36.9" fill="none" stroke="#ffbbbb" stroke-width="3" stroke-linecap="round"/>
+	<path d="M46.5 37.3 L49.5 37.6" fill="none" stroke="#ff8080" stroke-width="3" stroke-linecap="round"/>
+	<path d="M29 42.5 L39 43.5" fill="none" stroke="#ffff80" stroke-width="3" stroke-linecap="round"/>
+	<path d="M25 49 L27 49.2" fill="none" stroke="#ffbbbb" stroke-width="3" stroke-linecap="round"/>
+	<!-- line numbers -->
+	<path d="M14 13 L17 13.3 M13.7 20 L16.7 20.3 M13.4 27 L16.4 27.3 M13.1 34 L16.1 34.3 M12.8 41 L15.8 41.3 M12.5 48 L15.5 48.3" fill="none" stroke="#ffff80" stroke-width="2" stroke-linecap="round"/>
+</g>
+<g data-hvif-lod="0 0.3294">
+	<path d="M26 16 L46 18" fill="none" stroke="#e78d58" stroke-width="5" stroke-linecap="round"/>
+	<path d="M26 29 L40 30.4" fill="none" stroke="#ffff80" stroke-width="5" stroke-linecap="round"/>
+	<path d="M26 42 L47 44.1" fill="none" stroke="#ffbbbb" stroke-width="5" stroke-linecap="round"/>
+</g>
+</svg>

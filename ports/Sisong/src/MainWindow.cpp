@@ -342,9 +342,9 @@ int i;
 uint32 type;
 int32 count;
 entry_ref ref;
-EditView *ev;
+EditView *ev = NULL;
 
-	message->GetInfo("refs", &type, &count);
+	if (message->GetInfo("refs", &type, &count) != B_OK) return;
 	if (type != B_REF_TYPE) return;
 
 	LockLooper();
@@ -360,15 +360,17 @@ EditView *ev;
 			const char *filename = path.Path();
 
 			// if file is already open don't open another copy
-			ev = FindEVByFilename(filename);
-			if (!ev)
-			{
-				ev = CreateEditView((char *)filename);
-			}
+			EditView *opened = FindEVByFilename(filename);
+			if (!opened)
+				opened = CreateEditView((char *)filename);
+
+			// one that could not be opened (a directory, no permission)
+			// must not become the active tab
+			if (opened) ev = opened;
 		}
 	}
 
-	top.tabbar->SetActiveTab(ev);
+	if (ev) top.tabbar->SetActiveTab(ev);
 	DismissFilePanel();	// harmless if file panel isn't open
 	UnlockLooper();
 }

@@ -10,7 +10,7 @@ EditView *CreateEditView(const char *filename);
 /* located in Templates.cpp */
 
 //------------------[referenced from NewProject.cpp]-----------------//
-char *run_template_selector(BMessage msg_to_deliver, BMessenger target);
+void run_template_selector(BMessage msg_to_deliver, BMessenger target);
 
 
 /* located in misc.cpp */

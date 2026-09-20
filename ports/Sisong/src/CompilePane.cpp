@@ -31,7 +31,8 @@ CompilePane::CompilePane()
 	ListView = new BListView(lvrect, "compilelist", B_SINGLE_SELECTION_LIST, B_FOLLOW_ALL);
 	ListView->SetViewColor(color_bg);
 
-	BFont font(be_fixed_font);
+	BFont font;
+	GetFixedFont(&font);
 	font.SetSize(editor.settings.font_size);
 	ListView->SetFont(&font);
 
@@ -71,7 +72,8 @@ void CompilePane::PopupClosing()
 
 void CompilePane::ChangeFontSize(int new_point_size)
 {
-	BFont font(be_fixed_font);
+	BFont font;
+	GetFixedFont(&font);
 	font.SetSize(new_point_size);
 	ListView->SetFont(&font);
 	ListView->Invalidate();

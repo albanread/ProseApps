@@ -174,6 +174,35 @@ void EApp::RefsReceived(BMessage *message)
 	MainWindow->PostMessage(message);
 }
 
+// files named on the command line: "Sisong foo.cpp". Comes both from our own
+// launch and, as the application is single-launch, from a later one that
+// found us running; that one's working directory is in the message.
+void EApp::ArgvReceived(int32 argc, char **argv)
+{
+	const char *cwd = NULL;
+	BMessage *current = CurrentMessage();
+	if (current) current->FindString("cwd", &cwd);
+
+	BMessage refs(B_REFS_RECEIVED);
+	for(int32 i=1;i<argc;i++)
+	{
+		if (argv[i][0] == '-') continue;	// "-test", "-big": see main()
+
+		BPath path;
+		if (argv[i][0] == '/' || !cwd)
+			path.SetTo(argv[i]);
+		else
+			path.SetTo(cwd, argv[i]);
+
+		entry_ref ref;
+		if (path.InitCheck() == B_OK && get_ref_for_path(path.Path(), &ref) == B_OK)
+			refs.AddRef("refs", &ref);
+	}
+
+	if (refs.HasRef("refs"))
+		MainWindow->PostMessage(&refs);
+}
+
 void EApp::MessageReceived(BMessage *msg)
 {
 	switch(msg->what)

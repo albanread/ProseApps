@@ -22,4 +22,4 @@ private:
 	BView *_lastview;
 };
 
-
+void GetFixedFont(BFont *font);

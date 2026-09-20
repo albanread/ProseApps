@@ -23,7 +23,7 @@ void GetTemplateDirectoryRef(entry_ref *ref_out);
 void DispatchMessage(BMessage *msg, BHandler *target);
 void run_template_saver();
 void run_template_loader();
-char *run_template_selector(BMessage msg_to_deliver, BMessenger target);
+void run_template_selector(BMessage msg_to_deliver, BMessenger target);
 
 
 /* located in config.cpp */

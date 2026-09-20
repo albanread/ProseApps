@@ -18,7 +18,8 @@ SearchResultsPane::SearchResultsPane()
 
 	OnscreenList = new BListView(lvrect, "search_list", B_SINGLE_SELECTION_LIST, B_FOLLOW_ALL);
 
-	BFont font(be_fixed_font);
+	BFont font;
+	GetFixedFont(&font);
 	font.SetSize(editor.settings.font_size);
 	OnscreenList->SetFont(&font);
 	
@@ -41,7 +42,8 @@ SearchResultsPane::~SearchResultsPane()
 
 void SearchResultsPane::ChangeFontSize(int new_point_size)
 {
-	BFont font(be_fixed_font);
+	BFont font;
+	GetFixedFont(&font);
 	font.SetSize(new_point_size);
 	OnscreenList->SetFont(&font);
 	OnscreenList->Invalidate();

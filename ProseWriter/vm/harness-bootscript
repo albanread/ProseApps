@@ -1,0 +1,10 @@
+#!/bin/sh
+# UserBootscript installed by the ProseWriter dev harness.
+{
+  echo "=== prose boot probe $(date) ==="
+  ifconfig -a
+  ping -c 1 -t 3 10.0.2.2 2>&1
+} > /boot/home/boot-probe.txt 2>&1
+wget -q -t 1 -T 3 --post-file=/boot/home/boot-probe.txt \
+  http://10.0.2.2:8000/up/boot-probe.txt 2>/dev/null || true
+/bin/sh /boot/home/apps/agent-supervise.sh &

@@ -117,6 +117,27 @@ could be provoked.
   with Sisong as its preferred application), and an icon (`prose/Sisong.svg`;
   upstream had none).
 
+**Two things the port added** (asked for by the owner)
+
+- *File > New C++ Source* (Shift+Alt+N): a new document with the bones of a
+  C++ program in it, cursor on the line inside `main()`. It is an ordinary
+  untitled document; nothing is written until it is saved.
+- *Run > Compile This File* (Alt+B) and *Compile and Run This File*
+  (Shift+Alt+B): compile and link the document being edited on its own, with
+  no project around it. The file is saved first, the compiler runs in its own
+  folder, and the executable is made beside it, named after it. Output,
+  errors and exit codes appear in the build pane exactly as a project build's
+  do, so a compiler's `file:line: error` is still a line to click. The pane
+  stays open afterwards, where a project build closes it: one file's build is
+  an answer in itself, and with Run it holds the program's output.
+  The command is the setting `SingleFileBuildCommand` in
+  `~/config/settings/Sisong/settings`, where `%f` is the source file, `%e` the
+  executable to make and `%d` the folder. It defaults to
+  `g++ -g -Wall -o %e %f -lbe`.
+  **The Prose image has no compiler yet** (only `gcc_syslibs`, the runtime
+  libraries), so out of the box this says so and names the setting to change,
+  instead of leaving the shell to answer "command not found".
+
 **How it looks**
 
 - *Two new colour schemes, and they are the defaults.* **Paper**: dark ink on

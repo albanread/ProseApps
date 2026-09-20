@@ -23,6 +23,7 @@ BMenu *menu;
 
 	menu = new BMenu("File");
 	menu->AddItem(new BMenuItem("New", new BMessage(M_FILE_NEW), 'N', B_COMMAND_KEY));
+	menu->AddItem(new BMenuItem("New C++ Source", new BMessage(M_FILE_NEW_CPP), 'N', B_COMMAND_KEY | B_SHIFT_KEY));
 	menu->AddItem(new BMenuItem("New from Template...", new BMessage(M_FILE_LOAD_TEMPLATE), 'T', B_COMMAND_KEY));
 	menu->AddItem(new BMenuItem("Open...", new BMessage(M_FILE_OPEN), 'O', B_COMMAND_KEY));
 	menu->AddItem(new BMenuItem("Reload from disk", new BMessage(M_FILE_RELOAD), 0, 0));
@@ -89,6 +90,10 @@ BMenu *menu;
 	menu = new BMenu("Run");
 	menu->AddItem(new BMenuItem("Execute Build Script", new BMessage(M_RUN_RUN), 'R', B_COMMAND_KEY));
 	menu->AddItem(new BMenuItem("Build but Don't Run", new BMessage(M_RUN_BUILD_NO_RUN), 'R', B_COMMAND_KEY | B_CONTROL_KEY));
+	menu->AddSeparatorItem();
+	menu->AddItem(new BMenuItem("Compile This File", new BMessage(M_RUN_COMPILE_FILE), 'B', B_COMMAND_KEY));
+	menu->AddItem(new BMenuItem("Compile and Run This File", new BMessage(M_RUN_COMPILE_RUN_FILE), 'B', B_COMMAND_KEY | B_SHIFT_KEY));
+	menu->AddSeparatorItem();
 	menu->AddSeparatorItem();
 	ShowConsoleItem = new BMenuItem("Always Show Console", new BMessage(M_RUN_SHOW_CONSOLE));
 	menu->AddItem(ShowConsoleItem);
@@ -218,6 +223,62 @@ void CMainWindow::ProcessMenuCommand(unsigned int code, BMessage *msg)
 }
 
 
+// A new document with the bones of a C++ program in it, ready to be saved
+// and compiled (Run > Compile This File). It is a new untitled document like
+// any other: nothing is written to disk until it is saved.
+static const char *kCppSkeleton =
+	"#include <stdio.h>\n"
+	"\n"
+	"int main(int argc, char **argv)\n"
+	"{\n"
+	"\tprintf(\"Hello from Prose\\n\");\n"
+	"\treturn 0;\n"
+	"}\n";
+
+static void NewSourceFile()
+{
+EditView *ev;
+
+	ev = CreateEditView(NULL);
+	if (!ev) return;
+
+	TabBar->SetActiveTab(ev);
+
+	BeginUndoGroup(ev);
+	ev->action_insert_string(0, 0, kCppSkeleton, NULL, NULL);
+	EndUndoGroup(ev);
+
+	// on the line inside main(), after its tab
+	ev->cursor.move(1, 4);
+	ev->MakeCursorVisible();
+
+	FunctionList->ScanAll();
+	ev->FullRedrawView();
+}
+
+// Compile and link the document being edited, on its own: no project needed.
+// The file has to be on disk first, because a compiler reads files.
+static void CompileCurrentFile(bool runAfter)
+{
+EditView *ev = editor.curev;
+
+	if (!ev) return;
+
+	if (ev->IsUntitled)
+	{
+		(new BAlert("", "This document has no name yet. Save it, then compile it.",
+					"OK"))->Go();
+		FileSaveAs(false, false);
+		return;
+	}
+
+	// what is on disk is what gets compiled
+	if (ev->IsDirty && FileSave())
+		return;		// the save failed, and has said so
+
+	MainWindow->popup.compile->CompileFile(ev->filename, runAfter);
+}
+
 static bool FileMenu(unsigned int code, BMessage *msg)
 {
 	switch(code)
@@ -228,6 +289,10 @@ static bool FileMenu(unsigned int code, BMessage *msg)
 
 		case M_FILE_NEW:
 			TabBar->SetActiveTab(CreateEditView(NULL));
+		break;
+
+		case M_FILE_NEW_CPP:
+			NewSourceFile();
 		break;
 
 		case M_FILE_OPEN: FileOpen(); break;
@@ -596,6 +661,11 @@ static bool RunMenu(unsigned int code, BMessage *msg)
 			EditView::Save_All();
 			MainWindow->popup.compile->RunScript((code == M_RUN_RUN));
 		}
+		break;
+
+		case M_RUN_COMPILE_FILE:
+		case M_RUN_COMPILE_RUN_FILE:
+			CompileCurrentFile(code == M_RUN_COMPILE_RUN_FILE);
 		break;
 
 		case M_RUN_ABORT:

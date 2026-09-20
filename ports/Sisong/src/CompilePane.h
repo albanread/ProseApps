@@ -9,6 +9,10 @@ public:
 
 	void AddLine(const char *text, rgb_color lineColor, bool selectable);
 
+	// compile and link one source file, without a project: the command is
+	// the setting "SingleFileBuildCommand"
+	void CompileFile(const char *sourcePath, bool runAfter);
+
 	// the pane's inks, for the editor's ground as it is now
 	enum { INK_TEXT, INK_ERROR, INK_WARNING, INK_EXEC, INK_SCRIPTNAME,
 		INK_HEADER, INK_TITLE, NUM_INKS };
@@ -42,10 +46,16 @@ protected:
 	sem_id ListSemaphore;
 
 	int RunScriptInternal(char *fname);
+	void StartScript(const char *scriptPath, const char *label, \
+					const char *title, bool runWhenDone);
 
-	char fScriptName[MAXPATHLEN];
-	char fTempScriptFile[MAXPATHLEN];
+	char fScriptName[MAXPATHLEN];		// the open project's build script
+	char fTempScriptFile[MAXPATHLEN];	// one line of a script, for bash
+	char fSingleFileScript[MAXPATHLEN];	// the script CompileFile() writes
+	char fPendingScript[MAXPATHLEN];	// what the compile thread is to run
+	char fScriptLabel[MAXPATHLEN];		// what to call it in the pane
 	bool fRunResult;
+	bool fSingleFile;					// CompileFile(), not a project's build
 
 	struct
 	{

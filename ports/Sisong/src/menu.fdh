@@ -49,6 +49,8 @@ bool load_layout(const char *filename);
 //---------------------[referenced from menu.cpp]--------------------//
 BMenu *CreateLayoutPositionSubmenu(char *menuText, int msg_base, bool isSave);
 char *GetQuickLayoutFilename(int index);
+static void NewSourceFile();
+static void CompileCurrentFile(bool runAfter);
 static bool FileMenu(unsigned int code, BMessage *msg);
 static bool EditMenu(unsigned int code, BMessage *msg);
 static bool SearchMenu(unsigned int code, BMessage *msg);

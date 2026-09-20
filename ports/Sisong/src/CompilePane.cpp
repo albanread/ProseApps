@@ -123,7 +123,14 @@ CompilePane::CompilePane()
 	find_directory(B_SYSTEM_TEMP_DIRECTORY, 0, true, fTempScriptFile, 
 sizeof(fTempScriptFile) - 32);
 	AddSuffixIfMissing(fTempScriptFile, '/');
+
+	maxcpy(fSingleFileScript, fTempScriptFile, sizeof(fSingleFileScript));
 	strcat(fTempScriptFile, "sicompile");
+	strcat(fSingleFileScript, "sisinglefile");
+
+	fPendingScript[0] = 0;
+	fScriptLabel[0] = 0;
+	fSingleFile = false;
 }
 
 CompilePane::~CompilePane()
@@ -242,25 +249,217 @@ void CompilePane::SetScriptName(const char *fname)
 // if run_result is false, lines beginning with '%' are skipped.
 void CompilePane::RunScript(bool runWhenDone)
 {
-	if (CompileThread != -1)
-		AbortThread();
-
-	Clear();
-	MainWindow->popup.pane->Open(runWhenDone ? "Build" : "Build (no run)", this);
-	fRunResult = runWhenDone;
-
 	if (!fScriptName[0])
 	{
+		if (CompileThread != -1)
+			AbortThread();
+
+		Clear();
+		MainWindow->popup.pane->Open(runWhenDone ? "Build" : "Build (no run)", this);
+
 		AddLine("unable to build:", color_warning, false);
 		AddLine("  No build script is set...please open a project first", color_error, false);
 		return;
 	}
+
+	fSingleFile = false;
+	StartScript(fScriptName, fScriptName, \
+				runWhenDone ? "Build" : "Build (no run)", runWhenDone);
+}
+
+// Runs a script in the compile thread: the project's, or the one CompileFile()
+// writes for a single source file. "label" is what the pane calls it.
+void CompilePane::StartScript(const char *scriptPath, const char *label, \
+							const char *title, bool runWhenDone)
+{
+	if (CompileThread != -1)
+		AbortThread();
+
+	Clear();
+	MainWindow->popup.pane->Open(title, this);
+	fRunResult = runWhenDone;
+
+	maxcpy(fPendingScript, scriptPath, sizeof(fPendingScript));
+	maxcpy(fScriptLabel, label, sizeof(fScriptLabel));
 
 	thread.quit_ack = create_sem(0, "quit_ack");
 	thread.please_quit = false;
 
 	CompileThread = spawn_thread(ScriptRunnerThread, "Compile Thread", COMPILE_THREAD_PRIORITY, this);
 	resume_thread(CompileThread);
+}
+
+#define kDefaultBuildCommand	"g++ -g -Wall -o %e %f -lbe"
+
+// "prog" as the shell would find it: an absolute or relative name as it is,
+// a plain name through PATH
+static bool CommandExists(const char *prog)
+{
+	if (!prog || !prog[0]) return false;
+
+	if (strchr(prog, '/'))
+		return (access(prog, X_OK) == 0);
+
+	const char *path = getenv("PATH");
+	if (!path || !path[0])
+		path = "/boot/system/bin:/boot/system/non-packaged/bin";
+
+	BString dirs(path);
+	int32 start = 0;
+
+	while(start <= dirs.Length())
+	{
+		int32 colon = dirs.FindFirst(':', start);
+		if (colon < 0) colon = dirs.Length();
+
+		BString candidate;
+		dirs.CopyInto(candidate, start, colon - start);
+
+		if (candidate.Length() > 0)
+		{
+			candidate << "/" << prog;
+			if (access(candidate.String(), X_OK) == 0)
+				return true;
+		}
+
+		start = colon + 1;
+	}
+
+	return false;
+}
+
+// the command's first word
+static BString FirstWord(const char *command)
+{
+BString word;
+
+	while(*command == ' ' || *command == '\t') command++;
+	while(*command && *command != ' ' && *command != '\t')
+		word << *(command++);
+
+	return word;
+}
+
+// The build command, with the file's names in it:
+//   %f  the source file        %e  the executable to make
+//   %d  the folder it is in    %%  a percent sign
+// Each path is quoted, so a folder with spaces in its name works.
+static BString ExpandBuildCommand(const char *tmpl, const char *source, \
+								const char *exe, const char *dir)
+{
+BString out;
+
+	for(const char *p = tmpl; *p; p++)
+	{
+		if (*p != '%')
+		{
+			out << *p;
+			continue;
+		}
+
+		switch(*(++p))
+		{
+			case 'f': out << '"' << source << '"'; break;
+			case 'e': out << '"' << exe << '"'; break;
+			case 'd': out << '"' << dir << '"'; break;
+			case '%': out << '%'; break;
+			case 0: return out;		// a trailing % is nothing
+			default: out << '%' << *p; break;
+		}
+	}
+
+	return out;
+}
+
+// Compile and link one source file, with no project around it: the file's own
+// folder, an executable beside it named after it, and the command from the
+// setting "SingleFileBuildCommand". With runAfter, the executable is run when
+// it has been made (the script's "%" prefix, as for a project's build script).
+void CompilePane::CompileFile(const char *sourcePath, bool runAfter)
+{
+BPath source(sourcePath);
+BPath folder;
+
+	if (source.InitCheck() != B_OK || source.GetParent(&folder) != B_OK)
+	{
+		StartScript("", sourcePath, "Compile", false);
+		return;
+	}
+
+	// the executable: the file's name without its last extension, beside it
+	BString stem(source.Leaf());
+	int32 dot = stem.FindLast('.');
+	if (dot > 0) stem.Truncate(dot);
+
+	if (stem.Length() == 0 || stem == source.Leaf())
+		stem << ".out";		// a file with no extension: don't overwrite it
+
+	BString exe(folder.Path());
+	exe << "/" << stem;
+
+	// the command, kept in the settings file so it can be changed there
+	if (!settings->HasString("SingleFileBuildCommand"))
+		settings->SetString("SingleFileBuildCommand", kDefaultBuildCommand);
+
+	const char *tmpl = settings->GetString("SingleFileBuildCommand", kDefaultBuildCommand);
+	BString command = ExpandBuildCommand(tmpl, source.Path(), exe.String(), folder.Path());
+
+	const char *title = runAfter ? "Compile and Run" : "Compile";
+
+	// a machine with no compiler on it: say so, rather than let the shell
+	// answer "command not found" for something the user never typed
+	BString prog = FirstWord(command.String());
+	if (!CommandExists(prog.String()))
+	{
+		if (CompileThread != -1)
+			AbortThread();
+
+		Clear();
+		MainWindow->popup.pane->Open(title, this);
+
+		BString str;
+		str << "cannot compile: there is no \"" << prog << "\" on this machine.";
+		AddLine(str.String(), color_error, false);
+		AddLine("", color_text, false);
+		AddLine("  Prose does not ship with a compiler. Install one, or set another", color_text, false);
+		AddLine("  command: \"SingleFileBuildCommand\" in the settings file", color_text, false);
+		AddLine("  ~/config/settings/Sisong/settings, where %f is the source file,", color_text, false);
+		AddLine("  %e the executable to make and %d the folder it is in.", color_text, false);
+		AddLine("", color_text, false);
+
+		str = "  now: ";
+		str << tmpl;
+		AddLine(str.String(), color_warning, false);
+		return;
+	}
+
+	// the script: the file's folder, the command, and the executable itself
+	// on a line the runner skips unless it was asked to run it
+	FILE *fp = fopen(fSingleFileScript, "wt");
+	if (!fp)
+	{
+		if (CompileThread != -1)
+			AbortThread();
+
+		Clear();
+		MainWindow->popup.pane->Open(title, this);
+
+		BString str("cannot compile: ");
+		str << fSingleFileScript << " could not be written.";
+		AddLine(str.String(), color_error, false);
+		return;
+	}
+
+	// "cd" is the script runner's own, not the shell's: it takes the rest of
+	// the line as the path, quotes and all, so the path goes in unquoted
+	// (which also means a folder whose name has spaces in it works)
+	fprintf(fp, "cd %s\n", folder.Path());
+	fprintf(fp, "%s\n", command.String());
+	fprintf(fp, "%%\"%s\"\n", exe.String());
+	fclose(fp);
+
+	fSingleFile = true;
+	StartScript(fSingleFileScript, source.Path(), title, runAfter);
 }
 
 // if the compile thread is currently running, sees to it that it is stopped
@@ -320,7 +519,7 @@ status_t ScriptRunnerThread(void *data)
 CompilePane *pane = (CompilePane *)data;
 char fname[MAXPATHLEN];
 
-	maxcpy(fname, pane->fScriptName, sizeof(fname) - 1);
+	maxcpy(fname, pane->fPendingScript, sizeof(fname) - 1);
 	pane->RunScriptInternal(fname);
 	return B_OK;
 }
@@ -340,7 +539,7 @@ char olddir[MAXPATHLEN];
 int exitcode = 0;
 bool scriptEmpty = true;
 
-	BString fn(scriptname);
+	BString fn(fScriptLabel[0] ? fScriptLabel : scriptname);
 	fn.Prepend("-> ");
 	AddLine(fn.String(), color_scriptname, false);
 
@@ -428,7 +627,7 @@ bool scriptEmpty = true;
 					ListView->Select(fAutoJumpLine);
 			}
 		}
-		else if (exitcode == 0 && !scriptEmpty)
+		else if (exitcode == 0 && !scriptEmpty && !fSingleFile)
 		{
 			if (!MainWindow->top.menubar->ShowConsoleItem->IsMarked())
 				MainWindow->PostMessage(M_POPUPPANE_CLOSE);

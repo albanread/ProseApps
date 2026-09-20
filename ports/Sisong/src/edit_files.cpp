@@ -35,15 +35,6 @@ EditView *ev;
 
 	ev->ModifiedSinceRedraw = true;
 
-	for(int i=0;i<6;i++)
-	{
-		if (ev->curline->next)
-		{
-			ev->curline = ev->curline->next;
-			ev->cursor.y++;
-		}
-	}
-
 	ev->cursor.xseekmode = CM_FREE;
 	UpdateCursorPos(ev);
 

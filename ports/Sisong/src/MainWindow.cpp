@@ -132,9 +132,16 @@ void CMainWindow::DispatchMessage(BMessage *message, BHandler *handler)
 		// that would otherwise be gobbled up by the menu manager
 		case B_KEY_DOWN:
 		{
-			const char *bytes;
+			const char *bytes = NULL;
 			int32 ch;
-			if (message->FindString("bytes", &bytes) == B_OK)
+			if (message->FindString("bytes", &bytes) != B_OK || !bytes)
+			{
+				// a key message without its text (a script can send one):
+				// nothing for the editor in it, and nothing to look at below
+				BWindow::DispatchMessage(message, handler);
+				break;
+			}
+
 			{
 				if (!MainView->IsFocus())
 					MainView->MakeFocus();

@@ -38,7 +38,7 @@ static CheckboxPrefletData MiscPanelData[] =
 {
 	"Fix gaps in indentation when opening", &editor.settings.FixIndentationGaps, NULL, 0,
 	"Remove trailing whitespace when saving", &editor.settings.TrimTrailingOnSave, NULL, 0,
-	"Periodically auto-save to /boot/var/tmp/Sisong", &editor.settings.EnableAutoSaver, NULL, 0,
+	"Periodically auto-save to /tmp/Sisong", &editor.settings.EnableAutoSaver, NULL, 0,
 	//"", NULL, NULL, 0,
 	//"Warn if code doesn't match Haiku Coding Guidelines", &editor.settings.WarnHaikuGuidelines, NULL, 0,
 

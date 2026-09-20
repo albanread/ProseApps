@@ -6,13 +6,15 @@ brace matching, smart indenting, find and replace in a document, in all open
 documents and in files, projects with a build script, and a build pane that
 colours compiler output and jumps to the first error.
 
+![Sisong on Prose: its own FindBox.cpp open, the function list at the right](prose/screenshot.png)
+
 | | |
 |---|---|
 | Upstream | <https://github.com/HaikuArchives/Sisong>, `master` at `a79c29ea0941` (2020-03-10) |
 | Imported | the whole tree (`LICENSE`, `README`, `common/`, `src/`) in commit "ports: import Sisong as upstream has it", less one build product, `src/IComponent/CursorPos/CursorPos` (a 32-bit x86 executable) |
 | Licence | GPL 3, the author's (`LICENSE`); the port's changes are under the same |
 | Version | 2.16: upstream's last resource file said 2.16, and the About box says "Release Candidate 2, Revision 16" |
-| Package | `sisong-2.16-1-arm64.hpkg`, from the recipe `packages/builder/overlay/haiku-apps/sisong/` of the Prose repository; in the Prose image, Deskbar folder Development |
+| Package | `sisong-2.16-1-arm64.hpkg`, from the recipe `packages/builder/overlay/haiku-apps/sisong/` of the Prose repository, which builds a pinned commit of this one; in the Prose image since its patch 0070, Deskbar folder Development |
 | The port | every commit after the import that touches this directory: `git log -- ports/Sisong` |
 
 Upstream's `README` is as it came and describes upstream's build. This file

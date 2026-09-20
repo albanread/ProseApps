@@ -115,14 +115,14 @@ int k;
 void fgetcsv(FILE *fp, char *str, int maxlen)
 {
 int i, j;
-char ch;
+int ch;		// int, not char: EOF is -1, and a plain char cannot hold it where char is unsigned
 
 	maxlen--;
 	for(i=j=0;i<maxlen;i++)
 	{
 		ch = fgetc(fp);
 
-		if (ch==13 || ch==',' || ch=='}' || ch==-1)
+		if (ch==13 || ch==',' || ch=='}' || ch==EOF)
 		{
 			break;
 		}
@@ -354,7 +354,9 @@ int len = strlen(src);
 
 	if (len >= maxlen)
 	{
-		if (maxlen >= 2) memcpy(dst, src, maxlen - 2);
+		// maxlen - 1 characters and the terminator. (It copied maxlen - 2 and
+		// terminated at maxlen - 1, leaving one byte between them unset.)
+		if (maxlen >= 2) memcpy(dst, src, maxlen - 1);
 		if (maxlen >= 1) dst[maxlen - 1] = 0;
 	}
 	else

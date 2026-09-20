@@ -133,7 +133,7 @@ void EditView::HandleKey(int ch)
 void ProcessKey(EditView *ev, int key)
 {
 uint flags = GetKeyAttr(key);
-char MergeToPrior;
+char MergeToPrior = 0;
 
 	// free xseek mode
 	if (ev->cursor.xseekmode != CM_FREE)

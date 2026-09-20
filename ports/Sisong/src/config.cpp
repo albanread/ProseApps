@@ -193,7 +193,7 @@ char *GetConfigDir(char *buffer)
 
 		strcat(buffer, "Sisong/");
 
-		mkdir(buffer, S_IRUSR | S_IWUSR);
+		mkdir(buffer, 0755);	// a directory needs its search bits
 		return buffer;
 	}
 

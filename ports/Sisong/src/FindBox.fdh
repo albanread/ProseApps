@@ -61,11 +61,6 @@ void DeleteBefore(BString *string, int x);
 bool GetDirectoryContents(const char *folder, const char *filter, BList *files, BList *dirs);
 
 
-/* located in NotifyUpdate.cpp */
-
-//--------------------[referenced from FindBox.cpp]------------------//
-void Go(uint delay);
-
 
 /* located in ../common/misc.cpp */
 

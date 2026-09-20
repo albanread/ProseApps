@@ -27,11 +27,6 @@ char *strwhat(uint in);
 bool TrySetFontFamily(BFont *font, const char *desired_face, const char *desired_style);
 
 
-/* located in NotifyUpdate.cpp */
-
-//---------------------[referenced from misc.cpp]--------------------//
-void Go(uint delay);
-
 
 /* located in ../common/stat.cpp */
 

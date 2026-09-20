@@ -410,9 +410,11 @@ int checkbox_y = 53;
 FBView::~FBView()
 {
 	// on the Find Files tab this checkbox is created for consistency but never
-	// actually added to the window, so we have to delete it manually
-	if (fbmode == FINDBOX_FIND_FILES);
-		delete chkBackwards;
+	// actually added to the window, so we have to delete it manually. On the
+	// other tabs it is a child of ours: deleting it here takes it off our
+	// list, so it is not deleted twice. (The "if" that was here ended in a
+	// semicolon; what it meant to guard is right in both cases.)
+	delete chkBackwards;
 }
 
 /*
@@ -615,7 +617,7 @@ int options;
 		case M_REPLACE_ALL:
 		case M_REPLACE_ALL_IN_ALL:
 		{
-			int count;
+			int count = 0;
 
 			replace_string = smal_strdup(GetCurrentView()->txtReplaceWith->Text());
 

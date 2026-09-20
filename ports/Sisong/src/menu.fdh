@@ -97,11 +97,6 @@ void SetClipboardText(const char *text, int32 textLength);
 char *GetConfigDir(char *buffer);
 
 
-/* located in NotifyUpdate.cpp */
-
-//---------------------[referenced from menu.cpp]--------------------//
-void Go(uint delay);
-
 
 /* located in ../common/stat.cpp */
 

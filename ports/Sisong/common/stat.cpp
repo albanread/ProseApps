@@ -11,13 +11,18 @@ void staterr(const char *str, ...);
 void lstat(const char *str, ...);
 
 
+// A message is cut at this length. It was 40000 with an unbounded vsprintf;
+// these run on any thread, stat() calls lstat(), and a thread's stack here
+// is 256 KB.
+#define STAT_BUFFER_SIZE	8192
+
 BLocker statlock;
 static char log_file_name[MAXPATHLEN] = { 0 };
 static FILE *logfp = NULL;
 
 void SetLogfileName(const char *nn)
 {
-	strcpy(log_file_name, nn);
+	strlcpy(log_file_name, nn, sizeof(log_file_name));
 
 	logfp = fopen(log_file_name, "wb");
 	if (logfp)
@@ -48,10 +53,10 @@ public:
 void stat(const char *str, ...)
 {
 va_list ar;
-char buf[40000];
+char buf[STAT_BUFFER_SIZE];
 
 	va_start(ar, str);
-	vsprintf(buf, str, ar);
+	vsnprintf(buf, sizeof(buf), str, ar);
 	va_end(ar);
 
 	statlock.Lock();
@@ -68,10 +73,10 @@ char buf[40000];
 void staterr(const char *str, ...)
 {
 va_list ar;
-char buf[40000];
+char buf[STAT_BUFFER_SIZE];
 
 	va_start(ar, str);
-	vsprintf(buf, str, ar);
+	vsnprintf(buf, sizeof(buf), str, ar);
 	va_end(ar);
 
 	statlock.Lock();
@@ -89,7 +94,7 @@ char buf[40000];
 void lstat(const char *str, ...)
 {
 va_list ar;
-char buf[40000];
+char buf[STAT_BUFFER_SIZE];
 
 	if (!logfp)
 		return;
@@ -97,7 +102,7 @@ char buf[40000];
 	statlock.Lock();
 	{
 		va_start(ar, str);
-		vsprintf(buf, str, ar);
+		vsnprintf(buf, sizeof(buf), str, ar);
 		va_end(ar);
 
 		fprintf(logfp, "%d: %s\n", find_thread(0), buf);

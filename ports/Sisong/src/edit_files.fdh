@@ -63,11 +63,6 @@ int RTrimWhitespace(char *string, int linelength);
 void AutoSaver_StartTimer();
 
 
-/* located in NotifyUpdate.cpp */
-
-//------------------[referenced from edit_files.cpp]-----------------//
-void Go(uint delay);
-
 
 /* located in ../common/stat.cpp */
 

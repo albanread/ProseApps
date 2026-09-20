@@ -157,7 +157,7 @@ int line_bottom = y + (editor.font_height-1);
 			// * only draw indentation tabs; don't draw tabs once any text is seen.
 			if (!have_non_tab && lastch == TAB)
 			{
-				if (cx > 0)
+				if (cx > 0 && ntablines < (int)(sizeof(tablines) / sizeof(tablines[0])))
 				{
 					tablines[ntablines] = (buffer_xstart + 2);
 					tablevel[ntablines] = (index - 1);
@@ -190,6 +190,14 @@ int line_bottom = y + (editor.font_height-1);
 			buffer[buffer_length++] = ch;
 			have_non_tab = 1;
 			cx++;
+
+			// a run of one colour longer than the buffer (a long string, a
+			// line of data): draw what there is and go on
+			if (buffer_length == (int)sizeof(buffer))
+			{
+				DUMP_BUFFER;
+				RESET_BUFFER;
+			}
 		}
 
 		lastch = ch;

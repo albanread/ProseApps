@@ -59,7 +59,10 @@ static EditView *InitEVFromFile(const char *fname)
 {
 FILE *fp;
 EditView *ev;
-char buf[1024];
+char *buf = NULL;
+size_t bufsize = 0;
+ssize_t len;
+bool ended_in_newline = true;	// an empty file is one empty line
 clLine *line;
 
 	stat("opening document '%s'", fname);
@@ -71,11 +74,29 @@ clLine *line;
 
 	ev = new EditView;
 
-	while(!feof(fp))
+	// Lines of any length: getline() grows the buffer. (This read into
+	// char[1024], so a longer line came in as several lines, and saving
+	// the document then wrote the breaks into the file.)
+	// A document is its lines joined by newlines, so text that ends in a
+	// newline ends in an empty line: Save() writes back what was read.
+	for(;;)
 	{
-		fgetline(fp, buf, sizeof(buf));
+		len = getline(&buf, &bufsize, fp);
+		if (len < 0)
+		{
+			if (!ended_in_newline) break;
+			len = 0;
+		}
 
-		line = new clLine(buf);
+		ended_in_newline = (len > 0 && buf[len - 1] == '\n');
+		bool last = (len == 0);
+
+		// trim the CR/LF
+		while(len > 0 && (buf[len - 1] == 13 || buf[len - 1] == 10))
+			len--;
+
+		if (buf) buf[len] = 0;
+		line = new clLine(buf ? buf : "");
 		line->next = NULL;
 		line->prev = ev->lastline;
 
@@ -88,8 +109,10 @@ clLine *line;
 		lexer_update_line(line);
 
 		ev->nlines++;
+		if (last) break;
 	}
 
+	free(buf);
 	fclose(fp);
 
 	if (editor.settings.FixIndentationGaps)

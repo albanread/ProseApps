@@ -46,7 +46,7 @@ SRCS := \
 	src/colors.cpp src/config.cpp src/ViewTimer.cpp src/FontDrawer.cpp \
 	src/SubWindow.cpp src/ColoredStringItem.cpp src/OffscreenBuffer.cpp \
 	src/FunctionList.cpp src/AutoSaver.cpp src/testview.cpp src/CList.cpp \
-	src/MessageView.cpp src/NotifyUpdate.cpp src/stats.cpp \
+	src/MessageView.cpp src/stats.cpp \
 	src/Prefs/Prefs.cpp src/Prefs/AboutPreflet.cpp \
 	src/Prefs/CheckboxPreflet.cpp src/Prefs/ColorsPreflet.cpp \
 	src/Prefs/ColorItem.cpp src/Prefs/ColorView.cpp \

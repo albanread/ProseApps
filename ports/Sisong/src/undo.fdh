@@ -33,8 +33,3 @@ static void RevertAction(EditView *ev, UndoBuffer *ub, UndoBuffer *rb);
 void errorblip();
 
 
-/* located in NotifyUpdate.cpp */
-
-//---------------------[referenced from undo.cpp]--------------------//
-void Go(uint delay);
-

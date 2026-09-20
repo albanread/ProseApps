@@ -143,7 +143,6 @@ struct EditorData
 		bool DoBraceMatching;
 		bool DisableLexer;
 		bool ShowBuildHelp;
-		bool CheckForUpdate;
 
 		bool FixIndentationGaps;
 		bool TrimTrailingOnSave;

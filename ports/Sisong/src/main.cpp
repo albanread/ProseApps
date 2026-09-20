@@ -25,18 +25,12 @@ int main(int argc, char **argv)
 	//smal_init();
 	memset(&editor, 0, sizeof(editor));
 
-	char lfn[80];
-	if (argv[0][0] == '/')
-	{
-		sprintf(lfn, "%s.log", argv[0]);
-	}
-	else
-	{
-		const char *myname = strrchr(argv[0], '/');
-		if (!myname) myname = argv[0]; else myname++;
-		sprintf(lfn, "/boot/dev/sisong/%s.log", myname);
-	}
-	SetLogfileName(lfn);
+	// A debug log is written only when asked for: SISONG_LOG=/path/to/file.
+	// (It used to go beside the executable, which an installed package
+	// cannot be written beside, or into the author's own /boot/dev/sisong.)
+	const char *lfn = getenv("SISONG_LOG");
+	if (lfn && lfn[0])
+		SetLogfileName(lfn);
 
 	settings = Config::load();
 	LoadEditorSettings();
@@ -137,8 +131,7 @@ EApp::EApp()
 	// create initial document view
 	editor.DocList = new CList;
 
-	editor.curev = CreateEditView("/boot/dev/sisong/src/borkme");
-	if (!editor.curev) editor.curev = CreateEditView(NULL);
+	editor.curev = CreateEditView(NULL);
 	MainWindow->UpdateWindowTitle();
 
 	app_running = true;
@@ -239,7 +232,6 @@ bool firsttime;
 	editor.settings.DoBraceMatching = settings->GetInt("do_brace_match", 1);
 	editor.settings.DisableLexer = settings->GetInt("disable_lexer", 0);
 	editor.settings.ShowBuildHelp = settings->GetInt("show_build_help", 1);
-	editor.settings.CheckForUpdate = settings->GetInt("CheckForUpdate", 1);
 
 	editor.settings.use_ibeam_cursor = settings->GetInt("use_ibeam", 0);
 	//editor.settings.swap_ctrl_and_alt = settings->GetInt("swap_ctrl_and_alt", 0);
@@ -292,7 +284,6 @@ void SaveEditorSettings()
 	settings->SetInt("do_brace_match", editor.settings.DoBraceMatching);
 	settings->SetInt("disable_lexer", editor.settings.DisableLexer);
 	settings->SetInt("show_build_help", editor.settings.ShowBuildHelp);
-	settings->SetInt("CheckForUpdate", editor.settings.CheckForUpdate);
 
 	settings->SetInt("use_ibeam", editor.settings.use_ibeam_cursor);
 	//settings->SetInt("swap_ctrl_and_alt", editor.settings.swap_ctrl_and_alt);

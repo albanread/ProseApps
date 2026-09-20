@@ -632,7 +632,7 @@ BString *TCTabItem::GetCaption()
 	else
 	{
 		char str[80];
-		sprintf(str, "<tab 0x%06x>", this);
+		sprintf(str, "<tab %p>", (void *)this);
 		return new BString(str);
 	}
 }

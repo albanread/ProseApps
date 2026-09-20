@@ -311,7 +311,7 @@ Spinner::SetValue(int32 value)
 	BControl::SetValue(value);
 	
 	char string[50];
-	sprintf(string,"%ld",value);
+	sprintf(string,"%" B_PRId32,value);
 	fTextControl->SetText(string);
 }
 
@@ -336,7 +336,7 @@ Spinner::MessageReceived(BMessage *msg)
 		BString string(fTextControl->Text());
 		int32 newvalue = 0;
 		
-		sscanf(string.String(),"%ld",&newvalue);
+		sscanf(string.String(),"%" B_SCNd32,&newvalue);
 		if (newvalue >= GetMin() && newvalue <= GetMax()) {
 			// new value is in range, so set it and go
 			SetValue(newvalue);
@@ -358,7 +358,7 @@ Spinner::MessageReceived(BMessage *msg)
 				ValueChanged(Value());
 			} else {
 				char string[100];
-				sprintf(string,"%ld",Value());
+				sprintf(string,"%" B_PRId32,Value());
 				fTextControl->SetText(string);
 			}
 		}
@@ -884,7 +884,7 @@ SpinnerMsgFilter::Filter(BMessage *msg, BHandler **target)
 						BString string(text->Text());
 						int32 newvalue = 0;
 						
-						sscanf(string.String(),"%ld",&newvalue);
+						sscanf(string.String(),"%" B_SCNd32,&newvalue);
 						if (newvalue != spin->Value()) {
 							spin->SetValue(newvalue);
 							spin->Invoke();

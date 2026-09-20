@@ -49,11 +49,6 @@ bool IsShiftDown();
 void AutoSaver_Tick();
 
 
-/* located in NotifyUpdate.cpp */
-
-//------------------[referenced from MainWindow.cpp]-----------------//
-void Go(uint delay);
-
 
 /* located in stats.cpp */
 

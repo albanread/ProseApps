@@ -30,7 +30,6 @@ static CheckboxPrefletData GeneralPanelData[] =
 	"Disable Lexer", &editor.settings.DisableLexer, NULL, 0,
 	"Use I-Beam cursor", &editor.settings.use_ibeam_cursor, NULL, 0,
 	"Show Build Help", &editor.settings.ShowBuildHelp, NULL, 0,
-	"Notify if update available", &editor.settings.CheckForUpdate, NULL, 0,
 
 	NULL, NULL, NULL, 0
 };

@@ -2,7 +2,6 @@
 #include "editor.h"
 #include "MainWindow.fdh"
 
-namespace UpdateCheck { void Go(uint delay); }
 
 CMainWindow::CMainWindow(BRect frame)
 	: BWindow(frame, "Sisong", B_TITLED_WINDOW, 0)
@@ -64,10 +63,6 @@ BRect rc;
 
 	// cursor-flashing pulsar thread
 	cursor_timer = new CViewTimer(this, M_CURSOR_TIMER, 100);
-
-	// spawn the thread that notifies if an update is available
-	if (editor.settings.CheckForUpdate)
-		UpdateCheck::Go(100 * 1000);
 
 	main.editarea->editpane->MakeFocus();
 

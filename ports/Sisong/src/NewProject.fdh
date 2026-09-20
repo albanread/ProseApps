@@ -19,11 +19,6 @@ void run_template_selector(BMessage msg_to_deliver, BMessenger target);
 bool CopyFile(const char *src, const char *dst);
 
 
-/* located in NotifyUpdate.cpp */
-
-//------------------[referenced from NewProject.cpp]-----------------//
-void Go(uint delay);
-
 
 /* located in ../common/stat.cpp */
 

@@ -200,17 +200,32 @@ could be provoked.
 
 `packages/tests/sisong.sh` in the Prose repository runs on the target from
 `packages/boot-test.sh`. It starts Sisong on a file with a 3000-character
-line and no final newline, types into it and saves through the messages a
-user's keys and menu would send (`hey Sisong _KYD of Window 0 with bytes=t`;
-`'!MnF'` is File > Save), compares the file byte for byte with what it
-should be, launches a second time with another file and expects it in the
-same window, and asks for File > Exit, expecting status 0 and no crash
+line, UTF-8 and no final newline, types into it and saves through the
+messages a user's keys and menu would send (`hey Sisong _KYD of Window 0
+with bytes=t`; `'!MnF'` is File > Save), compares the file byte for byte with
+what it should be, launches a second time with another file and expects it
+in the same window, opens a file with a 6000-character word, asks for the
+find box twice, and asks for File > Exit, expecting status 0 and no crash
 report.
 
-By hand, under QEMU with keys sent from the host: open, type, undo, find,
-every page of the preferences, a project made with Projects > New, its build
-script written and run with output and exit codes in the build pane, files
-with CRLF and without a final newline saved and compared.
+By hand, under QEMU with keys and mouse sent from the host
+(`packages/guitest/guitest.sh` of the Prose repository), on arm64:
+
+- open, type, undo, find, replace all (16 of 16, the saved file equal to
+  `sed`'s), copy, paste, duplicate line, the mouse wheel, a jump from the
+  function list, every page of the preferences;
+- files with CRLF, without a final newline and with a 5000-character line
+  saved and compared byte for byte;
+- Find in Files over a folder, a hit opened from the results;
+- a project made with Projects > New, with the bottom pane closed and with it
+  open; its build script written and run, output and exit codes in the build
+  pane; a script ending in `hide` run three times; a build aborted with
+  Ctrl+Alt+A twice, then run again;
+- Alt+F with the find box open; Ctrl+Alt+F; Escape in New Folder's input box;
+  Preferences opened and closed eight times with the statistics timer
+  running; a click at the left edge of an empty line, then typing; opening a
+  project with an unsaved document (it asks);
+- exit status 0 and no crash report after each session.
 
 ## Known limits (upstream's, unchanged)
 

@@ -49,6 +49,12 @@ bool load_layout(const char *filename);
 //---------------------[referenced from menu.cpp]--------------------//
 BMenu *CreateLayoutPositionSubmenu(char *menuText, int msg_base, bool isSave);
 char *GetQuickLayoutFilename(int index);
+static bool GetExamplesDir(BPath *out);
+static status_t CopyOneFile(const char *from, const char *to);
+static status_t CopyFolder(const char *from, const char *to);
+static int ExampleFileRank(const char *name);
+static void OpenExample(const char *shippedPath);
+BMenu *CreateExamplesMenu();
 static void NewSourceFile();
 static void CompileCurrentFile(bool runAfter);
 static bool FileMenu(unsigned int code, BMessage *msg);

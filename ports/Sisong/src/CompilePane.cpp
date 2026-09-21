@@ -289,7 +289,23 @@ void CompilePane::StartScript(const char *scriptPath, const char *label, \
 	resume_thread(CompileThread);
 }
 
-#define kDefaultBuildCommand	"g++ -g -Wall -o %e %f -lbe"
+#define kDefaultBuildCommand	"%c -g -Wall -o %e %f -lbe"
+
+// what this build command said before Prose had a compiler of its own: a
+// setting still holding it was never chosen, it was only the default of the
+// day, and is replaced by the one above
+#define kOldBuildCommand		"g++ -g -Wall -o %e %f -lbe"
+
+// the compiler for a file, by its name: C++ unless it is plainly C
+static const char *CompilerFor(const char *path)
+{
+	const char *dot = strrchr(path, '.');
+
+	if (dot && (!strcmp(dot, ".c") || !strcmp(dot, ".h")))
+		return "clang";
+
+	return "clang++";
+}
 
 // "prog" as the shell would find it: an absolute or relative name as it is,
 // a plain name through PATH
@@ -342,7 +358,8 @@ BString word;
 
 // The build command, with the file's names in it:
 //   %f  the source file        %e  the executable to make
-//   %d  the folder it is in    %%  a percent sign
+//   %d  the folder it is in    %c  the compiler for this file
+//   %%  a percent sign
 // Each path is quoted, so a folder with spaces in its name works.
 static BString ExpandBuildCommand(const char *tmpl, const char *source, \
 								const char *exe, const char *dir)
@@ -362,6 +379,7 @@ BString out;
 			case 'f': out << '"' << source << '"'; break;
 			case 'e': out << '"' << exe << '"'; break;
 			case 'd': out << '"' << dir << '"'; break;
+			case 'c': out << CompilerFor(source); break;
 			case '%': out << '%'; break;
 			case 0: return out;		// a trailing % is nothing
 			default: out << '%' << *p; break;
@@ -398,7 +416,8 @@ BPath folder;
 	exe << "/" << stem;
 
 	// the command, kept in the settings file so it can be changed there
-	if (!settings->HasString("SingleFileBuildCommand"))
+	const char *stored = settings->GetString("SingleFileBuildCommand", NULL);
+	if (!stored || !strcmp(stored, kOldBuildCommand))
 		settings->SetString("SingleFileBuildCommand", kDefaultBuildCommand);
 
 	const char *tmpl = settings->GetString("SingleFileBuildCommand", kDefaultBuildCommand);
@@ -421,10 +440,36 @@ BPath folder;
 		str << "cannot compile: there is no \"" << prog << "\" on this machine.";
 		AddLine(str.String(), color_error, false);
 		AddLine("", color_text, false);
-		AddLine("  Prose does not ship with a compiler. Install one, or set another", color_text, false);
-		AddLine("  command: \"SingleFileBuildCommand\" in the settings file", color_text, false);
+		// Prose ships clang and lld, so this is nearly always a command from
+		// the settings file naming something else: say what is on the machine
+		// rather than guess at why.
+		static const char *known[] = { "clang", "clang++", "gcc", "g++", "cc", NULL };
+		BString available;
+
+		for(int i=0;known[i];i++)
+		{
+			if (!CommandExists(known[i])) continue;
+			if (available.Length() > 0) available << ", ";
+			available << known[i];
+		}
+
+		if (available.Length() > 0)
+		{
+			str = "  compilers on this machine: ";
+			str << available;
+			AddLine(str.String(), color_text, false);
+			AddLine("  %c in the command stands for the right one: clang++ for C++, clang for C.", color_text, false);
+		}
+		else
+		{
+			AddLine("  no compiler was found at all, which is not how Prose ships:", color_text, false);
+			AddLine("  \"pkgman install clang\" puts one back.", color_text, false);
+		}
+
+		AddLine("", color_text, false);
+		AddLine("  The command is \"SingleFileBuildCommand\" in the settings file", color_text, false);
 		AddLine("  ~/config/settings/Sisong/settings, where %f is the source file,", color_text, false);
-		AddLine("  %e the executable to make and %d the folder it is in.", color_text, false);
+		AddLine("  %e the executable to make, %d the folder it is in, %c the compiler.", color_text, false);
 		AddLine("", color_text, false);
 
 		str = "  now: ";

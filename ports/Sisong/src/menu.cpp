@@ -1,4 +1,8 @@
 
+#include <Directory.h>
+#include <Entry.h>
+#include <File.h>
+#include <FindDirectory.h>
 #include <Path.h>
 #include <Roster.h>
 #include "editor.h"
@@ -25,6 +29,7 @@ BMenu *menu;
 	menu->AddItem(new BMenuItem("New", new BMessage(M_FILE_NEW), 'N', B_COMMAND_KEY));
 	menu->AddItem(new BMenuItem("New C++ Source", new BMessage(M_FILE_NEW_CPP), 'N', B_COMMAND_KEY | B_SHIFT_KEY));
 	menu->AddItem(new BMenuItem("New from Template...", new BMessage(M_FILE_LOAD_TEMPLATE), 'T', B_COMMAND_KEY));
+	menu->AddItem(CreateExamplesMenu());
 	menu->AddItem(new BMenuItem("Open...", new BMessage(M_FILE_OPEN), 'O', B_COMMAND_KEY));
 	menu->AddItem(new BMenuItem("Reload from disk", new BMessage(M_FILE_RELOAD), 0, 0));
 	menu->AddSeparatorItem();
@@ -223,6 +228,233 @@ void CMainWindow::ProcessMenuCommand(unsigned int code, BMessage *msg)
 }
 
 
+// The examples that come with Prose: short programs to build and change.
+// They are installed on a read-only volume (packagefs), so opening one where
+// it lies would give the reader a file that cannot be saved and a folder the
+// compiler cannot write its executable into. A copy in the home folder opens
+// instead, made the first time an example is asked for and never overwritten
+// afterwards, so anything typed into it stays.
+#define kExamplesDirName	"prose-examples"
+#define kExamplesCopyName	"examples"
+#define kMaxExamples		64
+
+// where the shipped examples are, if they are installed at all
+static bool GetExamplesDir(BPath *out)
+{
+static const directory_which places[] = { B_SYSTEM_DATA_DIRECTORY, \
+		B_SYSTEM_NONPACKAGED_DATA_DIRECTORY, B_USER_NONPACKAGED_DATA_DIRECTORY };
+BPath path;
+
+	for(uint32 i=0;i<sizeof(places)/sizeof(places[0]);i++)
+	{
+		if (find_directory(places[i], &path) != B_OK) continue;
+		path.Append(kExamplesDirName);
+
+		BEntry entry(path.Path());
+		if (entry.Exists() && entry.IsDirectory())
+		{
+			*out = path;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// one file's contents; the examples carry no attributes that matter
+static status_t CopyOneFile(const char *from, const char *to)
+{
+BFile in(from, B_READ_ONLY);
+BFile out(to, B_WRITE_ONLY | B_CREATE_FILE | B_ERASE_FILE);
+char buffer[16384];
+ssize_t got;
+
+	if (in.InitCheck() != B_OK) return in.InitCheck();
+	if (out.InitCheck() != B_OK) return out.InitCheck();
+
+	while((got = in.Read(buffer, sizeof(buffer))) > 0)
+	{
+		ssize_t put = out.Write(buffer, got);
+		if (put != got) return (put < 0) ? (status_t)put : B_IO_ERROR;
+	}
+
+	return (got < 0) ? (status_t)got : B_OK;
+}
+
+// a folder and everything in it
+static status_t CopyFolder(const char *from, const char *to)
+{
+BDirectory source(from);
+BEntry entry;
+status_t status;
+
+	if (source.InitCheck() != B_OK) return source.InitCheck();
+
+	status = create_directory(to, 0755);
+	if (status != B_OK) return status;
+
+	while(source.GetNextEntry(&entry) == B_OK)
+	{
+		char name[B_FILE_NAME_LENGTH];
+		BPath child;
+
+		if (entry.GetName(name) != B_OK || entry.GetPath(&child) != B_OK) continue;
+
+		BString dest(to);
+		dest << "/" << name;
+
+		status = entry.IsDirectory() ? CopyFolder(child.Path(), dest.String()) \
+									: CopyOneFile(child.Path(), dest.String());
+		if (status != B_OK) return status;
+	}
+
+	return B_OK;
+}
+
+// What to open in a tab, and in what order: the source last, because the tab
+// opened last is the one the reader is left looking at.
+static int ExampleFileRank(const char *name)
+{
+	const char *dot = strrchr(name, '.');
+
+	if (!strcmp(name, "README") || !strcmp(name, "README.md")) return 0;
+	if (!strcmp(name, "Makefile") || !strcmp(name, "makefile")) return 1;
+	if (!dot) return -1;
+
+	if (!strcmp(dot, ".h") || !strcmp(dot, ".hpp")) return 2;
+	if (!strcmp(dot, ".c") || !strcmp(dot, ".cpp") || !strcmp(dot, ".cc")) return 3;
+
+	return -1;		// the executable, its objects, anything else: leave it
+}
+
+// Open an example, named by the folder it ships in.
+static void OpenExample(const char *shippedPath)
+{
+BEntry entry(shippedPath);
+BPath home;
+char name[B_FILE_NAME_LENGTH];
+
+	if (entry.InitCheck() != B_OK || entry.GetName(name) != B_OK) return;
+	if (find_directory(B_USER_DIRECTORY, &home) != B_OK) return;
+
+	BString target(home.Path());
+	target << "/" << kExamplesCopyName << "/" << name;
+
+	if (!BEntry(target.String()).Exists())
+	{
+		status_t status = CopyFolder(shippedPath, target.String());
+		if (status != B_OK)
+		{
+			BString message("Could not copy the example to ");
+			message << target << ":\n" << strerror(status);
+
+			BAlert *alert = new BAlert("", message.String(), "OK", NULL, NULL, \
+										B_WIDTH_AS_USUAL, B_WARNING_ALERT);
+			alert->Go();
+			return;
+		}
+	}
+
+	// the copy's files in one message, so they open the way files from the
+	// Tracker open: a tab that already has one of them is reused
+	BMessage refs(B_REFS_RECEIVED);
+	BDirectory folder(target.String());
+	BEntry file;
+
+	for(int rank=0;rank<=3;rank++)
+	{
+		folder.Rewind();
+
+		while(folder.GetNextEntry(&file) == B_OK)
+		{
+			char leaf[B_FILE_NAME_LENGTH];
+			entry_ref ref;
+
+			if (file.IsDirectory() || file.GetName(leaf) != B_OK) continue;
+			if (ExampleFileRank(leaf) != rank) continue;
+
+			if (file.GetRef(&ref) == B_OK)
+				refs.AddRef("refs", &ref);
+		}
+	}
+
+	if (refs.HasRef("refs"))
+	{
+		MainWindow->PostMessage(&refs);
+	}
+	else
+	{
+		BString message("There is nothing to open in ");
+		message << target << ".";
+
+		BAlert *alert = new BAlert("", message.String(), "OK", NULL, NULL, \
+									B_WIDTH_AS_USUAL, B_WARNING_ALERT);
+		alert->Go();
+	}
+}
+
+// The File > Examples submenu: one item per example that ships, in order.
+// Each item carries the path of its folder; opening it is OpenExample's job.
+BMenu *CreateExamplesMenu()
+{
+BMenu *menu = new BMenu("Examples");
+BString names[kMaxExamples];
+BPath examples;
+int count = 0;
+
+	if (!GetExamplesDir(&examples))
+	{
+		BMenuItem *none = new BMenuItem("None Installed", NULL);
+		none->SetEnabled(false);
+		menu->AddItem(none);
+		return menu;
+	}
+
+	BDirectory dir(examples.Path());
+	BEntry entry;
+
+	while(dir.GetNextEntry(&entry) == B_OK && count < kMaxExamples)
+	{
+		char name[B_FILE_NAME_LENGTH];
+
+		if (!entry.IsDirectory() || entry.GetName(name) != B_OK) continue;
+		names[count++] = name;
+	}
+
+	// by name: the examples are numbered, so that is their order
+	for(int i=0;i<count-1;i++)
+	for(int j=i+1;j<count;j++)
+	{
+		if (names[j].ICompare(names[i]) < 0)
+		{
+			BString swap = names[i];
+			names[i] = names[j];
+			names[j] = swap;
+		}
+	}
+
+	if (count == 0)
+	{
+		BMenuItem *none = new BMenuItem("None Installed", NULL);
+		none->SetEnabled(false);
+		menu->AddItem(none);
+		return menu;
+	}
+
+	for(int i=0;i<count;i++)
+	{
+		BString path(examples.Path());
+		path << "/" << names[i];
+
+		BMessage *msg = new BMessage(M_FILE_OPEN_EXAMPLE);
+		msg->AddString("path", path.String());
+
+		menu->AddItem(new BMenuItem(names[i].String(), msg));
+	}
+
+	return menu;
+}
+
 // A new document with the bones of a C++ program in it, ready to be saved
 // and compiled (Run > Compile This File). It is a new untitled document like
 // any other: nothing is written to disk until it is saved.
@@ -293,6 +525,15 @@ static bool FileMenu(unsigned int code, BMessage *msg)
 
 		case M_FILE_NEW_CPP:
 			NewSourceFile();
+		break;
+
+		case M_FILE_OPEN_EXAMPLE:
+		{
+			const char *path;
+
+			if (msg && msg->FindString("path", &path) == B_OK)
+				OpenExample(path);
+		}
 		break;
 
 		case M_FILE_OPEN: FileOpen(); break;

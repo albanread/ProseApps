@@ -69,6 +69,8 @@
 #define M_RUN_COMPILE_FILE		(M_MENUCMD_FIRST+84)
 #define M_RUN_COMPILE_RUN_FILE	(M_MENUCMD_FIRST+85)
 
+#define M_FILE_OPEN_EXAMPLE	(M_MENUCMD_FIRST+86)	// with "path" in the message
+
 #define M_HELP_1			(M_MENUCMD_FIRST+90)
 #define M_HELP_2			(M_MENUCMD_FIRST+91)
 #define M_HELP_3			(M_MENUCMD_FIRST+92)

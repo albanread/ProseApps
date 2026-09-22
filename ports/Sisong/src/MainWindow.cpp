@@ -364,19 +364,10 @@ void CMainWindow::MessageReceived(BMessage *message)
 
 		case LSP_DIAGNOSTICS:
 		{
-			// what clangd thinks of the document, one line of it in the
-			// message pane under the menu bar
-			int32 count = 0;
-			message->FindInt32("count", &count);
-
-			if (count > 0)
-			{
-				const char *text = NULL;
-				message->FindString("text", 0, &text);
-				main.editarea->cmd_preview->SetText(text ? text : "");
-			}
-			else
-				main.editarea->cmd_preview->SetText("");
+			// what clangd thinks of a document: the numbers of the lines it
+			// faults turn red for an error and amber for a warning, and a
+			// saved document's errors are listed in the Build pane
+			lsp_diagnostics_arrived(message);
 		}
 		break;
 
@@ -385,6 +376,7 @@ void CMainWindow::MessageReceived(BMessage *message)
 			if (MainView) MainView->cursor.tick();
 			if (FunctionList) FunctionList->TimerTick();
 			AutoSaver_Tick();
+			lsp_tick();
 
 			Stats_Tick(fWindowIsForeground || IsPrefsWindowOpenAndActive());
 		}

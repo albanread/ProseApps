@@ -15,8 +15,32 @@ class EditView;
 bool lsp_complete(EditView *ev);
 
 // send a C or C++ document's text to the server (opened, brought to the
-// front, saved): clangd's diagnostics about it come back unasked
-void lsp_sync_document(EditView *ev);
+// front, saved, its editing paused): clangd's diagnostics about it come
+// back unasked. True if the text went, or goes when the session opens.
+bool lsp_sync_document(EditView *ev);
+
+// the document was saved: its errors, when clangd has judged the saved
+// text, are listed in the Build pane
+void lsp_document_saved(EditView *ev);
+
+// the document was edited (EditView::SetDirty), and the window's 100 ms
+// timer: a second after the editing pauses the text goes to the server
+void lsp_document_edited(EditView *ev);
+void lsp_tick();
+
+// clangd's diagnostics for a document (LSP_DIAGNOSTICS): kept, shown in the
+// line numbers, and listed in the Build pane if the document was saved
+void lsp_diagnostics_arrived(class BMessage *message);
+
+// list a document's errors in the Build pane, as a save does
+void lsp_show_problems_of(EditView *ev);
+
+// the worst problem clangd reported on a line (counted from 0): 1 an error,
+// 2 a warning, 0 neither
+int lsp_line_severity(EditView *ev, int line);
+
+// the errors and warnings on a line, one to a line; false if there are none
+bool lsp_line_messages(EditView *ev, int line, class BString *out);
 
 // is this a document the language server can be asked about?
 bool lsp_is_cpp_document(EditView *ev);

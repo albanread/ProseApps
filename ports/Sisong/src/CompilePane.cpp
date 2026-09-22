@@ -230,6 +230,7 @@ ColoredStringItem *item;
 	fAutoJumpLineType = -1;
 
 	fHasErrors = false;
+	fShowingProblems = false;
 	fLineCount = 0;
 }
 
@@ -505,6 +506,17 @@ BPath folder;
 
 	fSingleFile = true;
 	StartScript(fSingleFileScript, source.Path(), title, runAfter);
+}
+
+// The thread's id is kept after it ends, until AbortThread() reaps it; what
+// says it is running is quit_ack, which it releases as the last thing it does.
+bool CompilePane::IsBusy()
+{
+	if (CompileThread == -1) return false;
+
+	int32 count = 0;
+	if (get_sem_count(thread.quit_ack, &count) != B_OK) return false;
+	return count == 0;
 }
 
 // if the compile thread is currently running, sees to it that it is stopped

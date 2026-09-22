@@ -14,6 +14,7 @@ public:
 	void Open(const char *title, PopupContents *contents);
 	void Close();
 	bool IsOpen();
+	PopupContents *Contents() { return contents; }
 	void SetContents(const char *title, PopupContents *newContents);
 	void SetTitle(const char *newTitle);
 	void RemoveContents();

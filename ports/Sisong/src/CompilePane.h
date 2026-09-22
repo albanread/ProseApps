@@ -29,6 +29,10 @@ public:
 	int Exec(const char *program, char *args[]);
 
 	bool fHasErrors;	// 1 if compile errors were detected during build
+	bool fShowingProblems;	// the list is clangd's errors in a saved document
+
+	// a build, or the program it started, is still running in the pane
+	bool IsBusy();
 	int fLineCount;
 
 	// stuff for the auto-take-me-to-error if errors occur

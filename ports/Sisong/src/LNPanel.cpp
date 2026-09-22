@@ -1,5 +1,6 @@
 
 #include "editor.h"
+#include "lsp_client.h"
 #include "LNPanel.fdh"
 
 /***********************************************
@@ -21,6 +22,7 @@ LNPanel::LNPanel(BRect frame, uint32 resizingMode)
 	
 	numLinesShown = 0;
 	redraw_needed = true;
+	fTipLine = -1;
 }
 
 LNPanel::~LNPanel()
@@ -117,6 +119,60 @@ void LNPanel::SetNumVisibleLines(int count)
 	}
 }
 
+int LNPanel::LineAt(BPoint where)
+{
+	if (where.y < 0 || font_drawer->fontheight <= 0) return -1;
+
+	int i = (int)where.y / font_drawer->fontheight;
+	if (i >= numLinesShown || lineItems[i].Number() <= 0) return -1;
+	return lineItems[i].Number() - 1;
+}
+
+void LNPanel::MouseMoved(BPoint where, uint32 transit, const BMessage *drag)
+{
+	int line = (transit == B_EXITED_VIEW || transit == B_OUTSIDE_VIEW)
+		? -1 : LineAt(where);
+	if (line == fTipLine) return;
+	fTipLine = line;
+
+	BString messages;
+	if (line >= 0 && lsp_line_messages(editor.curev, line, &messages))
+		SetToolTip(messages.String());
+	else
+		SetToolTip((const char *)NULL);
+}
+
+void LNPanel::MarksChanged()
+{
+	Invalidate();
+	if (fTipLine >= 0)
+	{
+		fTipLine = -1;
+		SetToolTip((const char *)NULL);
+	}
+}
+
+void LNPanel::MouseDown(BPoint where)
+{
+	int line = LineAt(where);
+
+	if (line >= 0 && lsp_line_severity(editor.curev, line) != 0)
+		lsp_show_problems_of(editor.curev);
+}
+
+// red and amber, lighter on a dark ground than on a light one
+rgb_color LNPanel::MarkColor(int severity)
+{
+	static const rgb_color on_light[2] = {
+		{ 0xd0, 0x1c, 0x1c, 255 }, { 0xb8, 0x6e, 0x00, 255 } };
+	static const rgb_color on_dark[2] = {
+		{ 0xff, 0x6b, 0x60, 255 }, { 0xff, 0xc2, 0x4a, 255 } };
+
+	int which = (severity == 1) ? 0 : 1;
+	return GetEditBGColor(COLOR_LINENUM).IsDark()
+		? on_dark[which] : on_light[which];
+}
+
 /***********************************************
 *  EACH	INDIVIDUAL								*
 *    LINE NUMBER (PRIVATE)						*
@@ -124,6 +180,8 @@ void LNPanel::SetNumVisibleLines(int count)
 
 void LNItem::SetNumber(LNPanel *parent, int new_no)
 {
+	number = new_no;
+
 	// build string to draw
 	snprintf(StringToDraw, sizeof(StringToDraw), "%d", new_no);
 	
@@ -140,15 +198,24 @@ void LNItem::SetNumber(LNPanel *parent, int new_no)
 
 void LNItem::DrawItem(LNPanel *parent, int y)
 {
-	// set colors
-	parent->SetLowColor(GetEditBGColor(COLOR_LINENUM));
-	parent->SetHighColor(GetEditFGColor(COLOR_LINENUM));
+	// a line clangd faults has its number in red for an error, amber for a
+	// warning, with a bar of that colour at the panel's edge
+	int sev = lsp_line_severity(editor.curev, number - 1);
 
 	// clear the area we're about to redraw
+	parent->SetLowColor(GetEditBGColor(COLOR_LINENUM));
 	BRect r(parent->Bounds());
 	r.top = y;
 	r.bottom = (y + parent->font_drawer->fontheight);
 	parent->FillRect(r, B_SOLID_LOW);
+
+	if (sev)
+	{
+		parent->SetHighColor(LNPanel::MarkColor(sev));
+		parent->FillRect(BRect(r.left, r.top + 1, r.left + 2, r.bottom - 1));
+	}
+	else
+		parent->SetHighColor(GetEditFGColor(COLOR_LINENUM));
 	
 	// draw the string
 	parent->font_drawer->DrawString(parent, StringToDraw, draw_x, y);

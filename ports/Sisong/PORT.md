@@ -147,14 +147,28 @@ could be provoked.
 
   For a C or C++ document the same command also asks `clangd_server`
   (Prose's BeOS shape around clangd, `clangdserver/` of the Prose
-  repository): a session is opened with the server on the first question,
-  and from the second on, the document's text goes with the question and
-  the server's completions join the list after the index's, marked by what
-  clangd knows them as (a member of a struct in the document itself, a
-  keyword, a macro). Its diagnostics about the document show in the
-  message pane under the menu bar. `src/lsp_client.cpp` speaks the
-  BMessage protocol of `src/lsp_protocol.h`; without the server running,
-  none of this happens and the index stands alone.
+  repository), which Sisong starts through the roster when it is not
+  running. The first question opens a session and is answered like any
+  other; the document's text goes with each question, and the server's
+  completions join the list after the index's, marked by what clangd knows
+  them as (a member of a struct in the document itself, a keyword, a
+  macro). In a C or C++ document the list also opens by itself after `.`,
+  `->` and `::` (a dot after a number does not count), and typing on
+  narrows it.
+
+  clangd's diagnostics come unasked: the document's text goes to the
+  server when it is opened or brought to the front, when it is saved, and
+  a second after its editing pauses. The number of a line with an error on
+  it turns red, of one with a warning amber, with a bar at the panel's
+  edge; the pointer resting on the number shows the message, and a click
+  on it lists the document's errors in the build pane. A save lists them
+  there too when there are any, one line each in the compiler's own format
+  (`file:line:column: error: ...`), so choosing one takes the editor to
+  the line; the list follows the document while it shows, and goes when
+  the errors do. A pane busy with a build, or the program it runs, is left
+  alone. `src/lsp_client.cpp` speaks the BMessage protocol of
+  `src/lsp_protocol.h`; without the server none of this happens, and the
+  index stands alone.
 - *File > New C++ Source* (Shift+Alt+N): a new document with the bones of a
   C++ program in it, cursor on the line inside `main()`. It is an ordinary
   untitled document; nothing is written until it is saved.

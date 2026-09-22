@@ -330,8 +330,11 @@ FILE *fp;
 		return 1;
 	}
 
-	// what was saved is what the language server should judge
-	lsp_sync_document(this);
+	// What was saved is what the language server should judge, and its
+	// errors are listed. Only a save of the document itself: an autosave
+	// writes a backup somewhere else, and Save a Copy is not the document.
+	if (!strcmp(filename, this->filename))
+		lsp_document_saved(this);
 	return 0;
 }
 
@@ -530,6 +533,9 @@ void EditView::SetDirty()
 		FunctionList->ResetTimer();
 		AutoSaver_StartTimer();
 	}
+
+	// the language server hears of it once the editing pauses
+	lsp_document_edited(this);
 
 	if (!IsDirty)
 	{

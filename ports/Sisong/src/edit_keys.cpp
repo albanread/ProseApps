@@ -1,6 +1,7 @@
 
 #include "editor.h"
 #include "edit_keys.fdh"
+#include "api_complete.h"
 
 // this key can extend or create a selection if it is pushed with SHIFT down,
 // and removes the selection if it is pressed without SHIFT down.
@@ -78,6 +79,10 @@ void EditView::HandleKey(int ch)
 
 		return;
 	}
+
+	// the completion list takes some keys while it is open
+	if (api_complete_key(this, ch))
+		return;
 
 	// catch command-shortcut sequences
 	if (ProcessCommandSeq(ch))

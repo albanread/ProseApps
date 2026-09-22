@@ -128,6 +128,7 @@ struct EditorData
 	{
 		int tab_width;
 		int font_size;
+		char font_family[64];		// "" = whatever the system picks for fixed
 
 		bool smart_indent_on_open;
 		bool smart_indent_on_close;

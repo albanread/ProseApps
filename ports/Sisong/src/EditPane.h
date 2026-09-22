@@ -15,6 +15,7 @@ public:
 	
 	void ClearBelow(int y);
 	void SetFontSize(int newsize);
+	void SetFontFamily(const char *family);
 	
 	CFlashingCursor cursor;
 

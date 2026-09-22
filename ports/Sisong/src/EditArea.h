@@ -10,6 +10,7 @@ public:
 	~CEditArea();
 	
 	void SetFontSize(int newsize);
+	void SetFontFamily(const char *family);
 	
 	LNPanel *ln;					// line number display
 	CSpacerView *spacer;			// spacer between ln and document

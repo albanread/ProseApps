@@ -6,8 +6,10 @@
 #include <MenuItem.h>
 #include <MenuField.h>
 #include <StringView.h>
+#include <Font.h>
 
 #define M_POINTSIZE_CHANGED		'FSzC'
+#define M_FONTSEL_CHANGED		'FntC'
 #define M_SCHEMESEL_CHANGED		'SslC'
 #define M_SCHEME_NEW			'SCHn'
 #define M_SCHEME_DELETE			'SCHd'
@@ -61,15 +63,40 @@ ColorsPreflet::ColorsPreflet(PrefsWindow *parent)
 	AddChild(paste);
 	
 	
-	// font selector area
+	// font selector area: the system's own choice of fixed font, and every
+	// fixed family the machine has after it
 	fFontMenu = new BPopUpMenu("fontsel");
-	fFontMenu->AddItem(new BMenuItem("System Fixed Font ", NULL));
-	
+	fFontMenu->AddItem(new BMenuItem("System Fixed Font",
+		new BMessage(M_FONTSEL_CHANGED)));
+
+	int32 families = count_font_families();
+	for(int32 i=0;i<families;i++)
+	{
+		font_family name;
+		uint32 flags;
+
+		if (get_font_family(i, &name, &flags) != B_OK) continue;
+		if (!(flags & B_IS_FIXED)) continue;
+
+		BMessage *msg = new BMessage(M_FONTSEL_CHANGED);
+		msg->AddString("family", name);
+		fFontMenu->AddItem(new BMenuItem(name, msg));
+	}
+
+	int marked = 0;
+	if (editor.settings.font_family[0])
+	{
+		for(int32 i=1;i<fFontMenu->CountItems();i++)
+			if (!strcmp(fFontMenu->ItemAt(i)->Label(),
+					editor.settings.font_family))
+				marked = i;
+	}
+	fFontMenu->ItemAt(marked)->SetMarked(true);
+
 	int x = 10;
 	int y = 273;
-	rc.Set(x, y, x+20, y+20);
+	rc.Set(x, y, x+200, y+20);
 	fFontField = new BMenuField(rc, "fontfld", "", fFontMenu);
-	fFontMenu->ItemAt(0)->SetMarked(true);
 	AddChild(fFontField);
 	
 	rc.Set(200, 270, 353, 290);
@@ -147,6 +174,17 @@ void ColorsPreflet::ReloadSettings()
 		fFontSize->SetValue(editor.settings.font_size);
 		Looper()->PostMessage(M_POINTSIZE_CHANGED);
 	}
+
+	// and the family
+	int marked = 0;
+	if (editor.settings.font_family[0])
+	{
+		for(int32 i=1;i<fFontMenu->CountItems();i++)
+			if (!strcmp(fFontMenu->ItemAt(i)->Label(),
+					editor.settings.font_family))
+				marked = i;
+	}
+	fFontMenu->ItemAt(marked)->SetMarked(true);
 }
 
 /*
@@ -183,6 +221,17 @@ void ColorsPreflet::MessageReceived(BMessage *msg)
 			int newsize = fFontSize->Value();
 			MainWindow->main.editarea->SetFontSize(newsize);
 			
+			fParent->SettingsChanged();
+		}
+		break;
+
+		case M_FONTSEL_CHANGED:
+		{
+			const char *family = "";
+			msg->FindString("family", &family);
+
+			MainWindow->main.editarea->SetFontFamily(family);
+
 			fParent->SettingsChanged();
 		}
 		break;

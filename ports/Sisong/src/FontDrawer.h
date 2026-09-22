@@ -6,6 +6,7 @@ public:
 	~CFontDrawer();
 	
 	void SetSize(int newsize);
+	void SetFamily(const char *family);
 	void SetColors(BView *view, rgb_color fg, rgb_color bg);
 	void SetFace(BView *view, int newface);
 	int GetStringWidth(char *string);

@@ -110,6 +110,24 @@ void CEditArea::SetFontSize(int newsize)
 	UnlockWindow();
 }
 
+void CEditArea::SetFontFamily(const char *family)
+{
+	LockWindow();
+
+	// first: so that an empty family asks GetFixedFont for the system's
+	// choice instead of the one being left
+	strlcpy(editor.settings.font_family, family,
+		sizeof(editor.settings.font_family));
+
+	editpane->SetFontFamily(family);
+	ln->SetFontFamily(family);
+
+	if (editor.curev)
+		editor.curev->FullRedrawView();
+
+	UnlockWindow();
+}
+
 /*
 void c------------------------------() {}
 */

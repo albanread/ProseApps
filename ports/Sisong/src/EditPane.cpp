@@ -41,6 +41,12 @@ void CEditPane::SetFontSize(int new_size)
 	FrameResized(0, 0);
 }
 
+void CEditPane::SetFontFamily(const char *family)
+{
+	FontDrawer->SetFamily(family);
+	SetFontSize(editor.settings.font_size);
+}
+
 /*
 void c------------------------------() {}
 */

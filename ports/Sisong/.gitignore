@@ -1,2 +1,5 @@
 # the build (make): objects, dependencies, the program
 objects/
+
+# the cross build of a development session
+objects-x/

@@ -222,6 +222,8 @@ bool firsttime;
 		settings->SetInt("ES_FirstTime", 0);
 
 	editor.settings.font_size = settings->GetInt("font_size", 16);
+	strlcpy(editor.settings.font_family, settings->GetString("font_family", ""),
+		sizeof(editor.settings.font_family));
 	editor.settings.tab_width = settings->GetInt("tab_width", 4);
 
 	editor.settings.smart_indent_on_open = settings->GetInt("indent_open", 1);
@@ -274,6 +276,7 @@ bool firsttime;
 void SaveEditorSettings()
 {
 	settings->SetInt("font_size", editor.settings.font_size);
+	settings->SetString("font_family", editor.settings.font_family);
 	settings->SetInt("tab_width", editor.settings.tab_width);
 
 	settings->SetInt("indent_open", editor.settings.smart_indent_on_open);

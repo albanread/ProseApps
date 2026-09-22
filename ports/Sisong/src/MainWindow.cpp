@@ -1,6 +1,9 @@
 
 #include "editor.h"
 #include "MainWindow.fdh"
+#include "api_complete.h"
+#include "lsp_client.h"
+#include "lsp_protocol.h"
 #include <ctype.h>
 
 
@@ -270,7 +273,11 @@ void CMainWindow::DispatchMessage(BMessage *message, BHandler *handler)
 				}
 				else if (ch == B_ESCAPE && !editor.settings.esc_quits_immediately)
 				{
-					if (editor.curev->IsCommandSeqActive())
+					if (api_complete_active())
+					{
+						api_complete_cancel();
+					}
+					else if (editor.curev->IsCommandSeqActive())
 					{
 						editor.curev->CancelCommandSeq();
 					}
@@ -336,6 +343,43 @@ void CMainWindow::MessageReceived(BMessage *message)
 {
 	switch(message->what)
 	{
+		case M_API_COMPLETE_ACCEPT:
+		{
+			api_complete_take();
+		}
+		break;
+
+		// the language server's session token, and its answers
+		case LSP_SESSION_REPLY:
+		{
+			lsp_session_opened(message);
+		}
+		break;
+
+		case LSP_COMPLETE_REPLY:
+		{
+			api_complete_clangd_reply(message);
+		}
+		break;
+
+		case LSP_DIAGNOSTICS:
+		{
+			// what clangd thinks of the document, one line of it in the
+			// message pane under the menu bar
+			int32 count = 0;
+			message->FindInt32("count", &count);
+
+			if (count > 0)
+			{
+				const char *text = NULL;
+				message->FindString("text", 0, &text);
+				main.editarea->cmd_preview->SetText(text ? text : "");
+			}
+			else
+				main.editarea->cmd_preview->SetText("");
+		}
+		break;
+
 		case M_CURSOR_TIMER:
 		{
 			if (MainView) MainView->cursor.tick();
@@ -532,6 +576,7 @@ bool CMainWindow::QuitRequested()
 	if (fDoingInstantQuit || ConfirmCloseSaveFiles(true))
 	{
 		fClosing = true;
+		lsp_end_session();
 		ProjectManager.SaveProject();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 		return true;

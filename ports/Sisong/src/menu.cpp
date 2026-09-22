@@ -10,6 +10,7 @@
 #include "messages.h"
 #include "NewProject.h"
 #include "Prefs/Prefs.h"
+#include "api_complete.h"
 
 #include "menu.fdh"
 extern BFilePanel *FilePanel;
@@ -62,6 +63,7 @@ BMenu *menu;
 	menu->AddItem(new BMenuItem("Select All", new BMessage(M_EDIT_SELECT_ALL), 'A', B_COMMAND_KEY));
 	menu->AddSeparatorItem();
 	menu->AddItem(new BMenuItem("Duplicate current line", new BMessage(M_EDIT_DUPLICATE), 'D', B_COMMAND_KEY));
+	menu->AddItem(new BMenuItem("Complete Word", new BMessage(M_EDIT_COMPLETE_WORD), '/', B_COMMAND_KEY));
 	bar->AddItem(menu);
 
 	menu = new BMenu("Search");
@@ -706,6 +708,10 @@ static bool EditMenu(unsigned int code, BMessage *msg)
 		break;
 		case M_EDIT_DUPLICATE:
 			EditDuplicate(editor.curev);
+			editor.curev->MakeCursorVisible();
+		break;
+		case M_EDIT_COMPLETE_WORD:
+			api_complete_word(editor.curev);
 			editor.curev->MakeCursorVisible();
 		break;
 

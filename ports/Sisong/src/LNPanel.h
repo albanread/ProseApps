@@ -31,6 +31,7 @@ public:
 	void RedrawIfNeeded(void);
 	
 	void SetFontSize(int newsize);
+	void SetFontFamily(const char *family);
 	
 private:
 	CFontDrawer *font_drawer;

@@ -34,6 +34,12 @@ void LNPanel::SetFontSize(int new_size)
 	SetFont(font_drawer->font);
 }
 
+void LNPanel::SetFontFamily(const char *family)
+{
+	font_drawer->SetFamily(family);
+	SetFont(font_drawer->font);
+}
+
 /*
 void c------------------------------() {}
 */

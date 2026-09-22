@@ -65,10 +65,15 @@ could be provoked.
 
 **The system it runs on**
 
-- *The fonts it looks for.* It asks for JetBrains Mono and Fira Code before
-  the system's own monospaced families: both are in the Prose image (patch
-  0075) and both are made for reading code. `be_fixed_font` still wins when
-  the system's fixed font really is fixed.
+- *The fonts it looks for, and a font of one's own.* It asks for JetBrains
+  Mono and Fira Code before the system's own monospaced families: both are
+  in the Prose image (patch 0075) and both are made for reading code.
+  `be_fixed_font` still wins when the system's fixed font really is fixed.
+  The Font/Colors page of the preferences now lists every fixed family the
+  machine has (plus "System Fixed Font" for the choice above), applies the
+  one picked at once, and keeps it in the `font_family` setting between
+  runs; a family that has gone missing falls back to the choice above,
+  silently.
 - *A fixed-width font that is fixed.* The editor places text, cursor and
   selection on a grid of cells and drew with `be_fixed_font` as it found it.
   That font is only as fixed as the fonts installed: the Prose image has
@@ -121,8 +126,35 @@ could be provoked.
   with Sisong as its preferred application), and an icon (`prose/Sisong.svg`;
   upstream had none).
 
-**Two things the port added** (asked for by the owner)
+**Three things the port added** (asked for by the owner)
 
+- *Edit > Complete Word* (Alt+/): completes the word before the caret from an
+  index of the Be/Haiku API — every class, method, function, constant and
+  macro of the public headers (about 16,000 names, with what each is and the
+  header it lives in). A word only one thing can be is finished without a
+  list; otherwise a list opens beside the word: the arrow keys walk it,
+  enter takes, escape closes, and any other key goes to the editor and
+  closes it. Matching ignores case, so `btextv` completes to `BTextView`
+  (typed with other letters than the name, the word gives way to the name).
+  The index is `api-index` in this directory, made by Prose's api-db
+  (`prosewriter/api-db/build_db.py --export-sisong`), read at first use
+  from `data/sisong/api-index` of the system, or the user's non-packaged
+  data directory (a build in progress, tried without installing); without
+  it the command still asks the language server. What the list inserts is
+  one undo step. `src/api_complete.cpp` is all of it; upstream's lexer had
+  a `load_keywords_from_file()` that was never called, so an editor fed
+  from a file of API words was already half its author's idea.
+
+  For a C or C++ document the same command also asks `clangd_server`
+  (Prose's BeOS shape around clangd, `clangdserver/` of the Prose
+  repository): a session is opened with the server on the first question,
+  and from the second on, the document's text goes with the question and
+  the server's completions join the list after the index's, marked by what
+  clangd knows them as (a member of a struct in the document itself, a
+  keyword, a macro). Its diagnostics about the document show in the
+  message pane under the menu bar. `src/lsp_client.cpp` speaks the
+  BMessage protocol of `src/lsp_protocol.h`; without the server running,
+  none of this happens and the index stands alone.
 - *File > New C++ Source* (Shift+Alt+N): a new document with the bones of a
   C++ program in it, cursor on the line inside `main()`. It is an ordinary
   untitled document; nothing is written until it is saved.
@@ -253,8 +285,10 @@ messages a user's keys and menu would send (`hey Sisong _KYD of Window 0
 with bytes=t`; `'!MnF'` is File > Save), compares the file byte for byte with
 what it should be, launches a second time with another file and expects it
 in the same window, opens a file with a 6000-character word, asks for the
-find box twice, and asks for File > Exit, expecting status 0 and no crash
-report.
+find box twice, completes a word from the api index (`'!Mnh'` is Edit >
+Complete Word: `BTextV` finishes itself, `BText` with four downs and enter
+gives `BTextView`), and asks for File > Exit, expecting status 0 and no
+crash report.
 
 By hand, under QEMU with keys and mouse sent from the host
 (`packages/guitest/guitest.sh` of the Prose repository), on arm64:

@@ -67,6 +67,19 @@ void GetFixedFont(BFont *font)
 {
 	*font = *be_fixed_font;
 	UseFixedFamily(font);
+
+	// the font the preferences chose, if it is still a fixed one
+	if (editor.settings.font_family[0])
+	{
+		BFont chosen;
+
+		if (chosen.SetFamilyAndStyle(editor.settings.font_family, "Regular")
+				== B_OK && chosen.IsFixed())
+		{
+			*font = chosen;
+			font->SetFace(B_REGULAR_FACE);
+		}
+	}
 }
 
 CFontDrawer::CFontDrawer(int font_size)
@@ -90,6 +103,28 @@ void c------------------------------() {}
 */
 
 // sets the size of the font (but you must reapply it to the view before it will change)
+// the family the preferences chose; the size in force stays in force. An
+// empty family means the system's own choice of fixed font again (and
+// editor.settings.font_family is already empty when this runs, so that is
+// what GetFixedFont gives)
+void CFontDrawer::SetFamily(const char *family)
+{
+	if (family && family[0]
+		&& font->SetFamilyAndStyle(family, "Regular") == B_OK
+		&& font->IsFixed())
+	{
+		font->SetFace(B_REGULAR_FACE);
+	}
+	else
+	{
+		float size = font->Size();
+		GetFixedFont(font);
+		font->SetSize(size);
+	}
+
+	SetSize((int)font->Size());
+}
+
 void CFontDrawer::SetSize(int newsize)
 {
 font_height fh;

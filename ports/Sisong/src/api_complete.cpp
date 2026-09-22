@@ -450,7 +450,23 @@ void api_complete_word(EditView *ev)
 	if (api_complete_active()) api_complete_cancel();
 
 	comp.prefix_len = api_word_before_caret(ev, comp.prefix, API_PREFIX_MAX);
-	if (comp.prefix_len < 1) return;
+
+	// Straight after "p.", "p->" or "Class::" there is no word yet, and what
+	// is wanted is every member there is: a question only the language server
+	// can answer. Anywhere else an empty word asks nothing.
+	bool member_access = false;
+	if (comp.prefix_len == 0)
+	{
+		BString *str = ev->curline->GetLineAsString();
+		const char *line = str->String();
+		int x = ev->cursor.x;
+		if (x > str->Length()) x = str->Length();
+		member_access = (x >= 1 && line[x - 1] == '.')
+			|| (x >= 2 && line[x - 2] == '-' && line[x - 1] == '>')
+			|| (x >= 2 && line[x - 2] == ':' && line[x - 1] == ':');
+		delete str;
+		if (!member_access) return;
+	}
 
 	// the question to the language server goes out first: its answer
 	// arrives as a message, and joins the list when it does. The first
@@ -461,7 +477,7 @@ void api_complete_word(EditView *ev)
 	// the index is optional: a machine without it still has the language
 	// server, and a document the server cannot read still has the index
 	comp.match_count = 0;
-	if (api_load_index() && api_symbol_count)
+	if (!member_access && api_load_index() && api_symbol_count)
 	{
 		const char *prev = "";
 
@@ -494,10 +510,10 @@ void api_complete_word(EditView *ev)
 		return;
 	}
 
-	if (comp.match_count == 1 && !comp.clangd_pending)
+	if (comp.match_count == 1)
 	{
-		// only one thing it can be, and nowhere better coming: it goes in
-		// without a list
+		// only one thing in the API it can be: it goes in without a list, and
+		// whatever the language server says after that is not waited for
 		comp.ev = ev;
 		api_insert_match(ev, comp.matches[0].name);
 		comp.ev = NULL;

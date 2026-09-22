@@ -5,11 +5,14 @@
 
 #include <Messenger.h>
 #include <Roster.h>
+#include <String.h>
 
 // the whole state of the conversation: who to talk to, the token the
 // server answered with, and which documents it has been told about
 static BMessenger *lsp_server = NULL;
 static int32 lsp_token = 0;
+static bool lsp_session_asked = false;	// a session is asked for, not yet answered
+static BString lsp_waiting_doc;		// the document whose question waits for it
 static bool lsp_dead = false;			// the server was not there, stop asking
 static bigtime_t lsp_last_try = 0;		// ...but look again every minute
 static BList lsp_opened_docs;			// char* file names sent with didOpen
@@ -102,16 +105,23 @@ bool lsp_complete(EditView *ev)
 	BMessenger *server = lsp_get_server();
 	if (!server) return false;
 
-	// the first question can only open the session; its answer is the
-	// token the next one goes with
+	// the first question has to open the session: its answer is the token
+	// every question goes with. The question is kept and asked the moment the
+	// token arrives (lsp_session_opened), so the first press is answered like
+	// any other rather than only opening the way for the next one.
 	if (lsp_token == 0)
 	{
-		BMessage start(LSP_SESSION);
-		start.AddMessenger("notify", BMessenger(MainWindow));
-		// the answer is a message to the main window: name it as the reply
-		// handler, or the one-way send carries no address for it
-		server->SendMessage(&start, MainWindow);
-		return false;
+		if (!lsp_session_asked)
+		{
+			BMessage start(LSP_SESSION);
+			start.AddMessenger("notify", BMessenger(MainWindow));
+			// the answer is a message to the main window: name it as the
+			// reply handler, or the one-way send carries no address for it
+			server->SendMessage(&start, MainWindow);
+			lsp_session_asked = true;
+		}
+		lsp_waiting_doc = ev->filename;
+		return true;
 	}
 
 	BString *text = lsp_document_text(ev);
@@ -144,6 +154,16 @@ bool lsp_complete(EditView *ev)
 void lsp_session_opened(BMessage *message)
 {
 	message->FindInt32("session", &lsp_token);
+	lsp_session_asked = false;
+
+	// the question the session was opened for, asked now -- of the document
+	// being edited, if it is still the one it was asked about, and from where
+	// its caret is now
+	BString waiting = lsp_waiting_doc;
+	lsp_waiting_doc = "";
+	if (lsp_token != 0 && waiting.Length() > 0 && editor.curev
+		&& !editor.curev->IsUntitled && waiting == editor.curev->filename)
+		lsp_complete(editor.curev);
 }
 
 void lsp_end_session()
@@ -155,4 +175,6 @@ void lsp_end_session()
 		lsp_server->SendMessage(&end);
 	}
 	lsp_token = 0;
+	lsp_session_asked = false;
+	lsp_waiting_doc = "";
 }

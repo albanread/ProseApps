@@ -443,6 +443,114 @@ static void api_show_popup(EditView *ev)
 	comp_win->Unlock();
 }
 
+// Does the caret stand straight after ".", "->" or "::"? Asked strictly (for
+// the list that opens by itself) the dot must follow a name, ")" or "]", and
+// not a number: "3." is a number being typed, not a member being asked for.
+static bool api_member_access(EditView *ev, bool strict)
+{
+	BString *str = ev->curline->GetLineAsString();
+	const char *line = str->String();
+	int x = ev->cursor.x;
+	bool result = false;
+
+	if (x > str->Length()) x = str->Length();
+
+	if (x >= 2 && line[x - 2] == '-' && line[x - 1] == '>')
+		result = true;
+	else if (x >= 2 && line[x - 2] == ':' && line[x - 1] == ':')
+		result = true;
+	else if (x >= 1 && line[x - 1] == '.')
+	{
+		if (!strict)
+			result = true;
+		else if (x >= 2)
+		{
+			char before = line[x - 2];
+			if (before == ')' || before == ']')
+				result = true;
+			else if (api_is_word_char(before))
+			{
+				// the word before the dot: a name, or only digits?
+				int start = x - 2;
+				bool digits = true;
+				while(start >= 0 && api_is_word_char(line[start]))
+				{
+					if (!isdigit((unsigned char)line[start])) digits = false;
+					start--;
+				}
+				result = !digits;
+			}
+		}
+	}
+
+	delete str;
+	return result;
+}
+
+// the list, hidden while its contents wait for the language server
+static void api_hide_popup()
+{
+	if (comp_win && comp_win->Lock())
+	{
+		if (!comp_win->IsHidden()) comp_win->Hide();
+		comp_win->Unlock();
+	}
+}
+
+// A letter typed while the list is open went into the document; the list
+// keeps what still begins with the word as it now stands. The caret has to be
+// still in the word the list was opened for.
+static bool comp_refilter_pending = false;
+
+static void api_refilter(EditView *ev)
+{
+	char word[API_PREFIX_MAX];
+	int len = api_word_before_caret(ev, word, API_PREFIX_MAX);
+
+	if (ev->cursor.x - len != comp.word_start_x)
+	{
+		api_complete_cancel();
+		return;
+	}
+
+	int kept = 0;
+	for(int i=0;i<comp.match_count;i++)
+	{
+		if (!strncasecmp(comp.matches[i].name, word, len))
+			comp.matches[kept++] = comp.matches[i];
+	}
+	comp.match_count = kept;
+	strlcpy(comp.prefix, word, sizeof(comp.prefix));
+	comp.prefix_len = len;
+
+	if (kept == 0)
+	{
+		// the server's answer, if one is coming, may still have something
+		if (comp.clangd_pending) api_hide_popup();
+		else api_complete_cancel();
+		return;
+	}
+
+	api_show_popup(ev);
+}
+
+// after every key the editor handled: a letter narrows an open list, and
+// ".", "->" or "::" in C or C++ opens one -- the characters clangd itself
+// names as the ones that start a completion
+void api_complete_after_key(EditView *ev, int ch)
+{
+	if (comp_refilter_pending)
+	{
+		comp_refilter_pending = false;
+		if (comp.ev == ev) api_refilter(ev);
+		return;
+	}
+
+	if ((ch == '.' || ch == '>' || ch == ':') && !api_complete_active()
+		&& lsp_is_cpp_document(ev) && api_member_access(ev, true))
+		api_complete_word(ev);
+}
+
 void api_complete_word(EditView *ev)
 {
 	int i;
@@ -457,14 +565,7 @@ void api_complete_word(EditView *ev)
 	bool member_access = false;
 	if (comp.prefix_len == 0)
 	{
-		BString *str = ev->curline->GetLineAsString();
-		const char *line = str->String();
-		int x = ev->cursor.x;
-		if (x > str->Length()) x = str->Length();
-		member_access = (x >= 1 && line[x - 1] == '.')
-			|| (x >= 2 && line[x - 2] == '-' && line[x - 1] == '>')
-			|| (x >= 2 && line[x - 2] == ':' && line[x - 1] == ':');
-		delete str;
+		member_access = api_member_access(ev, false);
 		if (!member_access) return;
 	}
 
@@ -560,6 +661,12 @@ void api_complete_clangd_reply(BMessage *message)
 			strlcpy(m->detail, "language server", sizeof(m->detail));
 	}
 
+	comp.clangd_pending = false;
+	if (comp.match_count == 0)
+	{
+		api_complete_cancel();
+		return;
+	}
 	api_show_popup(comp.ev);
 }
 
@@ -631,8 +738,15 @@ bool api_complete_key(EditView *ev, int ch)
 			return true;
 
 		default:
-			// any other key goes to the editor; the text moves on without
-			// the list
+			// a letter goes to the editor and narrows the list
+			// (api_complete_after_key); any other key goes to the editor and
+			// the text moves on without the list
+			if (ch > 0 && ch < 128 && api_is_word_char((char)ch)
+				&& !(modifiers() & (B_COMMAND_KEY | B_CONTROL_KEY)))
+			{
+				comp_refilter_pending = true;
+				return false;
+			}
 			api_complete_cancel();
 			return false;
 	}

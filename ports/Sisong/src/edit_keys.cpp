@@ -131,6 +131,9 @@ void EditView::HandleKey(int ch)
 		break;
 	}
 
+	// a letter narrows an open completion list; ".", "->" and "::" open one
+	api_complete_after_key(this, ch);
+
 	this->RedrawView();
 }
 

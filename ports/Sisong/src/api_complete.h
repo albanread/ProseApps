@@ -17,6 +17,10 @@ void api_complete_word(EditView *ev);
 // list's (up/down/page/home/end select, enter/tab take, escape closes)
 bool api_complete_key(EditView *ev, int ch);
 
+// after the editor has handled a key: a letter narrows an open list, and
+// ".", "->" or "::" in a C or C++ document opens one by itself
+void api_complete_after_key(EditView *ev, int ch);
+
 // is the list open?
 bool api_complete_active();
 

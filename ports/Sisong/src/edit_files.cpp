@@ -4,6 +4,7 @@
 */
 
 #include "editor.h"
+#include "lsp_client.h"
 #include "edit_files.fdh"
 
 
@@ -329,6 +330,8 @@ FILE *fp;
 		return 1;
 	}
 
+	// what was saved is what the language server should judge
+	lsp_sync_document(this);
 	return 0;
 }
 

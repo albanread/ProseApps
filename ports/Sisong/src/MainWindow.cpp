@@ -400,6 +400,10 @@ void CMainWindow::MessageReceived(BMessage *message)
 				{
 					editor.curev = newev;
 					editor.curev->FullRedrawView();
+
+					// a C or C++ document brought to the front is sent to the
+					// language server, whose diagnostics come back unasked
+					lsp_sync_document(newev);
 				}
 			}
 		}
@@ -544,6 +548,7 @@ EditView *ev = NULL;
 	if (ev)
 	{
 		top.tabbar->SetActiveTab(ev);
+		lsp_sync_document(ev);
 		if (blank && blank != ev)
 			blank->Close(false);
 	}

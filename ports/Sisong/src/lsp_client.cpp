@@ -13,6 +13,7 @@ static BMessenger *lsp_server = NULL;
 static int32 lsp_token = 0;
 static bool lsp_session_asked = false;	// a session is asked for, not yet answered
 static BString lsp_waiting_doc;		// the document whose question waits for it
+static bool lsp_waiting_is_sync = false;	// ...and whether it is only its text
 static bool lsp_dead = false;			// the server was not there, stop asking
 static bigtime_t lsp_last_try = 0;		// ...but look again every minute
 static BList lsp_opened_docs;			// char* file names sent with didOpen
@@ -98,6 +99,26 @@ static BString *lsp_document_text(EditView *ev)
 	return out;
 }
 
+// the document's text to the server: didOpen the first time, didChange after
+static void lsp_send_document(BMessenger *server, EditView *ev)
+{
+	BString *text = lsp_document_text(ev);
+	bool opened = false;
+
+	for(int32 i=0;i<lsp_opened_docs.CountItems();i++)
+		if (!strcmp((const char *)lsp_opened_docs.ItemAt(i), ev->filename))
+			opened = true;
+
+	BMessage doc(opened ? LSP_CHANGE : LSP_OPEN);
+	doc.AddInt32("session", lsp_token);
+	doc.AddString("name", ev->filename);
+	doc.AddString("text", text->String());
+	server->SendMessage(&doc);
+
+	if (!opened) lsp_opened_docs.AddItem(strdup(ev->filename));
+	delete text;
+}
+
 bool lsp_complete(EditView *ev)
 {
 	if (ev->IsUntitled || !lsp_is_cpp(ev->filename)) return false;
@@ -121,23 +142,11 @@ bool lsp_complete(EditView *ev)
 			lsp_session_asked = true;
 		}
 		lsp_waiting_doc = ev->filename;
+		lsp_waiting_is_sync = false;
 		return true;
 	}
 
-	BString *text = lsp_document_text(ev);
-	bool opened = false;
-
-	for(int32 i=0;i<lsp_opened_docs.CountItems();i++)
-		if (!strcmp((const char *)lsp_opened_docs.ItemAt(i), ev->filename))
-			opened = true;
-
-	BMessage doc(opened ? LSP_CHANGE : LSP_OPEN);
-	doc.AddInt32("session", lsp_token);
-	doc.AddString("name", ev->filename);
-	doc.AddString("text", text->String());
-	server->SendMessage(&doc);
-
-	if (!opened) lsp_opened_docs.AddItem(strdup(ev->filename));
+	lsp_send_document(server, ev);
 
 	BMessage req(LSP_COMPLETE);
 	req.AddInt32("session", lsp_token);
@@ -147,8 +156,44 @@ bool lsp_complete(EditView *ev)
 	req.AddInt32("reqid", 1);
 	server->SendMessage(&req);
 
-	delete text;
 	return true;
+}
+
+// Keep the server's copy of a C or C++ document current: called when the
+// document is opened or brought to the front and after it is saved. clangd
+// answers every text it is given with its diagnostics, which the main window
+// shows in the message pane -- so errors appear without anything asked.
+void lsp_sync_document(EditView *ev)
+{
+	if (!lsp_is_cpp_document(ev)) return;
+
+	BMessenger *server = lsp_get_server();
+	if (!server) return;
+
+	if (lsp_token == 0)
+	{
+		if (!lsp_session_asked)
+		{
+			BMessage start(LSP_SESSION);
+			start.AddMessenger("notify", BMessenger(MainWindow));
+			server->SendMessage(&start, MainWindow);
+			lsp_session_asked = true;
+		}
+		// a completion that is waiting outranks a document that is
+		if (lsp_waiting_doc.Length() == 0)
+		{
+			lsp_waiting_doc = ev->filename;
+			lsp_waiting_is_sync = true;
+		}
+		return;
+	}
+
+	lsp_send_document(server, ev);
+}
+
+bool lsp_is_cpp_document(EditView *ev)
+{
+	return ev && !ev->IsUntitled && lsp_is_cpp(ev->filename);
 }
 
 void lsp_session_opened(BMessage *message)
@@ -161,9 +206,19 @@ void lsp_session_opened(BMessage *message)
 	// its caret is now
 	BString waiting = lsp_waiting_doc;
 	lsp_waiting_doc = "";
+	bool sync = lsp_waiting_is_sync;
+	lsp_waiting_is_sync = false;
 	if (lsp_token != 0 && waiting.Length() > 0 && editor.curev
 		&& !editor.curev->IsUntitled && waiting == editor.curev->filename)
-		lsp_complete(editor.curev);
+	{
+		if (sync)
+		{
+			BMessenger *server = lsp_get_server();
+			if (server) lsp_send_document(server, editor.curev);
+		}
+		else
+			lsp_complete(editor.curev);
+	}
 }
 
 void lsp_end_session()
@@ -177,4 +232,5 @@ void lsp_end_session()
 	lsp_token = 0;
 	lsp_session_asked = false;
 	lsp_waiting_doc = "";
+	lsp_waiting_is_sync = false;
 }

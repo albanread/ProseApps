@@ -297,6 +297,25 @@ void CompilePane::StartScript(const char *scriptPath, const char *label, \
 // day, and is replaced by the one above
 #define kOldBuildCommand		"g++ -g -Wall -o %e %f -lbe"
 
+// The makefile in a folder, if there is one. A file that comes with one is
+// built by it: the single-file command below knows nothing of what a source
+// needs beyond libbe, so an example whose makefile says "-lgame" failed to
+// link with "undefined symbol: BGamePane::..." while the library sat on the
+// machine all along. The makefile is the file's own answer to that question.
+static bool FolderMakefile(const char *folder)
+{
+	static const char *names[] = { "Makefile", "makefile", "GNUmakefile", NULL };
+
+	for(int i=0;names[i];i++)
+	{
+		BPath candidate(folder, names[i]);
+		if (candidate.InitCheck() == B_OK && access(candidate.Path(), R_OK) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 // the compiler for a file, by its name: C++ unless it is plainly C
 static const char *CompilerFor(const char *path)
 {
@@ -422,7 +441,19 @@ BPath folder;
 		settings->SetString("SingleFileBuildCommand", kDefaultBuildCommand);
 
 	const char *tmpl = settings->GetString("SingleFileBuildCommand", kDefaultBuildCommand);
-	BString command = ExpandBuildCommand(tmpl, source.Path(), exe.String(), folder.Path());
+
+	// A folder with a makefile in it is built by the makefile: it is the only
+	// thing that knows which libraries this source wants. The executable is
+	// still guessed from the file's name, which is the convention the examples
+	// follow; a makefile that makes something else will build, and the run
+	// step will say it cannot find what it was told to run.
+	const bool useMake = FolderMakefile(folder.Path());
+	BString command;
+
+	if (useMake)
+		command = "make";
+	else
+		command = ExpandBuildCommand(tmpl, source.Path(), exe.String(), folder.Path());
 
 	const char *title = runAfter ? "Compile and Run" : "Compile";
 
@@ -441,6 +472,15 @@ BPath folder;
 		str << "cannot compile: there is no \"" << prog << "\" on this machine.";
 		AddLine(str.String(), color_error, false);
 		AddLine("", color_text, false);
+
+		// make is what we chose, not what the settings asked for, so the
+		// advice below about compilers and the build command does not apply
+		if (useMake)
+		{
+			AddLine("  This folder has a makefile, so it is built with \"make\".", color_text, false);
+			AddLine("  \"pkgman install make\" puts it on the machine.", color_text, false);
+			return;
+		}
 		// Prose ships clang and lld, so this is nearly always a command from
 		// the settings file naming something else: say what is on the machine
 		// rather than guess at why.
